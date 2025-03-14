@@ -6,15 +6,40 @@
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
-mod vga;
-static HELLO: &[u8] = b"Hello World!";
 
+use io::read_one;
+mod io;
+mod vga;
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     vga::WRITER.lock().write_str("Hello").unwrap();
     #[cfg(test)]
     test_main();
-    loop {}
+    let mut buf = [0, 0, 0, 0];
+    loop {
+        let mut i = 0;
+        vga::WRITER.lock().write_str("\n> ").unwrap();
+        loop {
+            if let Some(key) = read_one() {
+                vga::WRITER.lock().write_char(key as char).unwrap();
+                if key == b'\n' {
+                    break;
+                }
+                if i < 4 {
+                    buf[i] = key;
+                    i += 1;
+                }
+            }
+        }
+        exit(&buf);
+    }
+}
+
+fn exit(buf: &[u8; 4]) {
+    if buf == b"exit" {
+        vga::WRITER.lock().write_str("\nExiting...\n").unwrap();
+        exit_qemu(QemuExitCode::Success);
+    }
 }
 
 #[panic_handler]
