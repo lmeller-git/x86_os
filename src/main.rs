@@ -4,20 +4,14 @@
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+use core::fmt::Write;
 use core::panic::PanicInfo;
-
+mod vga;
 static HELLO: &[u8] = b"Hello World!";
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    let vga_buffer = 0xb8000 as *mut u8;
-
-    for (i, &byte) in HELLO.iter().enumerate() {
-        unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-            *vga_buffer.offset(i as isize * 2 + 1) = 0xb;
-        }
-    }
+    vga::WRITER.lock().write_str("Hello").unwrap();
     #[cfg(test)]
     test_main();
     loop {}
@@ -55,14 +49,5 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
 
 #[test_case]
 fn trivial_assertion() {
-    let vga_buffer = 0xb8000 as *mut u8;
-
-    for (i, &byte) in b"huhu".iter().enumerate() {
-        unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-            *vga_buffer.offset(i as isize * 2 + 1) = 0xb;
-        }
-    } // print!("trivial assertion... ");
-    assert_eq!(1, 1);
-    // println!("[ok]");
+    vga::WRITER.lock().write_str("test").unwrap()
 }
