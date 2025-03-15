@@ -1,5 +1,4 @@
-use crate::{io, print, println, Result};
-use io::read_one;
+use crate::{io::keyboard::KEYBOARD_BUFFER, print, println, Result};
 
 pub fn run() -> Result<()> {
     let mut buf = [0, 0, 0, 0];
@@ -8,13 +7,13 @@ pub fn run() -> Result<()> {
         println!();
         print!("> ");
         loop {
-            if let Some(key) = read_one() {
-                print!("{}", key as char);
-                if key == b'\n' {
+            if let Some(k) = KEYBOARD_BUFFER.get_next() {
+                print!("{}", k);
+                if k == '\n' {
                     break;
                 }
                 if i < 4 {
-                    buf[i] = key;
+                    buf[i] = k as u8;
                     i += 1;
                 }
             }

@@ -8,6 +8,7 @@
 use bootloader::{entry_point, BootInfo};
 use core::fmt;
 use core::panic::PanicInfo;
+use lib_os::hlt_loop;
 mod interface;
 mod interrupt;
 mod io;
@@ -18,23 +19,22 @@ entry_point!(kernel_main);
 fn kernel_main(_boot_info: &'static BootInfo) -> ! {
     println!("Initializing Interrupts...");
     interrupt::init();
-    x86_64::instructions::interrupts::int3();
     #[cfg(test)]
     test_main();
-    loop {
-        match interface::run() {
-            Ok(_) => exit_qemu(QemuExitCode::Success),
-            Err(e) => match e {
-                KernelError::ExitSignal(_s) => exit_qemu(QemuExitCode::Success),
-            },
-        }
+    match interface::run() {
+        Ok(_) => exit_qemu(QemuExitCode::Success),
+        Err(e) => match e {
+            KernelError::ExitSignal(_s) => exit_qemu(QemuExitCode::Success),
+        },
     }
+    hlt_loop()
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    exit_qemu(QemuExitCode::Failed);
-    loop {}
+fn panic(info: &PanicInfo) -> ! {
+    println!("panicked at {:#?}", info);
+    // exit_qemu(QemuExitCode::Failed);
+    hlt_loop()
 }
 
 pub type Result<T> = core::result::Result<T, KernelError>;
