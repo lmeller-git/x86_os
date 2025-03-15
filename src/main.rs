@@ -4,47 +4,43 @@
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use core::fmt::Write;
+use bootloader::{entry_point, BootInfo};
+use core::fmt;
 use core::panic::PanicInfo;
-
-use io::read_one;
+mod interface;
 mod io;
-mod vga;
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
-    vga::WRITER.lock().write_str("Hello").unwrap();
+entry_point!(kernel_main);
+
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
-    let mut buf = [0, 0, 0, 0];
     loop {
-        let mut i = 0;
-        vga::WRITER.lock().write_str("\n> ").unwrap();
-        loop {
-            if let Some(key) = read_one() {
-                vga::WRITER.lock().write_char(key as char).unwrap();
-                if key == b'\n' {
-                    break;
-                }
-                if i < 4 {
-                    buf[i] = key;
-                    i += 1;
-                }
-            }
+        match interface::run() {
+            Ok(_) => exit_qemu(QemuExitCode::Success),
+            Err(e) => match e {
+                KernelError::ExitSignal(s) => exit_qemu(QemuExitCode::Success),
+            },
         }
-        exit(&buf);
-    }
-}
-
-fn exit(buf: &[u8; 4]) {
-    if buf == b"exit" {
-        vga::WRITER.lock().write_str("\nExiting...\n").unwrap();
-        exit_qemu(QemuExitCode::Success);
     }
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    exit_qemu(QemuExitCode::Failed);
     loop {}
+}
+
+pub type Result<T> = core::result::Result<T, KernelError>;
+
+#[derive(Debug)]
+pub enum KernelError {
+    ExitSignal(u8),
+}
+
+impl fmt::Display for KernelError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,7 +68,14 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
     exit_qemu(QemuExitCode::Success);
 }
 
-#[test_case]
-fn trivial_assertion() {
-    vga::WRITER.lock().write_str("test").unwrap()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::fmt::Write;
+    use io::vga;
+
+    #[test_case]
+    fn test_vga() {
+        vga::WRITER.lock().write_str("test").unwrap()
+    }
 }
