@@ -1,15 +1,15 @@
-use crate::{io, Result};
-use core::fmt::Write;
-use io::{read_one, vga};
+use crate::{io, print, println, Result};
+use io::read_one;
 
 pub fn run() -> Result<()> {
     let mut buf = [0, 0, 0, 0];
     loop {
         let mut i = 0;
-        vga::WRITER.lock().write_str("\n> ").unwrap();
+        println!();
+        print!("> ");
         loop {
             if let Some(key) = read_one() {
-                vga::WRITER.lock().write_char(key as char).unwrap();
+                print!("{}", key as char);
                 if key == b'\n' {
                     break;
                 }
@@ -25,7 +25,7 @@ pub fn run() -> Result<()> {
 
 fn should_exit(buf: &[u8; 4]) -> Result<()> {
     if buf == b"exit" {
-        vga::WRITER.lock().write_str("\nExiting...\n").unwrap();
+        println!("\nExiting...");
         Err(crate::KernelError::ExitSignal(0))
     } else {
         Ok(())

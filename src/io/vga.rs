@@ -5,6 +5,8 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
 
+use super::WriterBackend;
+
 // TODO create history for Writer to undo/redo changes (need to change selection logic + need growable buffer)
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,13 +157,13 @@ impl VGABuffer {
     }
 }
 
-pub struct Writer {
+pub struct VGAWriter {
     column: usize,
     row: usize,
     buffer: &'static mut VGABuffer,
 }
 
-impl Writer {
+impl VGAWriter {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.shift_up(),
@@ -244,7 +246,7 @@ impl Writer {
     }
 }
 
-impl fmt::Write for Writer {
+impl fmt::Write for VGAWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for byte in s.bytes() {
             match byte {
@@ -256,8 +258,10 @@ impl fmt::Write for Writer {
     }
 }
 
+impl WriterBackend for VGAWriter {}
+
 lazy_static! {
-    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
+    pub static ref WRITER: Mutex<VGAWriter> = Mutex::new(VGAWriter {
         column: 0,
         row: BUFFER_HEIGHT - 1,
         buffer: unsafe { &mut *VGABuffer::new() },

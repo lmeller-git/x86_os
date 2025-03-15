@@ -3,22 +3,29 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(abi_x86_interrupt)]
 
 use bootloader::{entry_point, BootInfo};
 use core::fmt;
 use core::panic::PanicInfo;
 mod interface;
+mod interrupt;
 mod io;
+mod lib_os;
+
 entry_point!(kernel_main);
 
-fn kernel_main(boot_info: &'static BootInfo) -> ! {
+fn kernel_main(_boot_info: &'static BootInfo) -> ! {
+    println!("Initializing Interrupts...");
+    interrupt::init();
+    x86_64::instructions::interrupts::int3();
     #[cfg(test)]
     test_main();
     loop {
         match interface::run() {
             Ok(_) => exit_qemu(QemuExitCode::Success),
             Err(e) => match e {
-                KernelError::ExitSignal(s) => exit_qemu(QemuExitCode::Success),
+                KernelError::ExitSignal(_s) => exit_qemu(QemuExitCode::Success),
             },
         }
     }
@@ -39,6 +46,9 @@ pub enum KernelError {
 
 impl fmt::Display for KernelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ExitSignal(s) => writeln!(f, "Exit Signal {} recorded", s)?,
+        }
         Ok(())
     }
 }
