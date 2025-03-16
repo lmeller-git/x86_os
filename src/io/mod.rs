@@ -21,14 +21,29 @@ pub struct Writer<B: WriterBackend> {
 pub fn _print(args: Arguments) {
     interrupts::without_interrupts(|| write!(vga::WRITER.lock(), "{}", args).unwrap())
 }
+struct Buffer {
+    fg: Color,
+    bg: Color,
+}
 
-pub fn _print_with_args(args: Arguments, bg: Color, fg: Color) {
-    if let Some(s) = args.as_str() {
+impl core::fmt::Write for Buffer {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let mut writer = vga::WRITER.lock();
         for byte in s.bytes() {
-            vga::WRITER.lock().write_byte(byte);
-            vga::WRITER.lock().select_prev().unwrap().update(|c| {
-                c.fg(fg).bg(bg);
+            writer.write_byte(byte);
+            // Hack
+            if byte == b'\n' {
+                continue;
+            }
+            writer.select_prev().unwrap().update(|c| {
+                c.fg(self.fg).bg(self.bg);
             });
         }
+        Ok(())
     }
+}
+
+pub fn _print_with_args(args: Arguments, bg: Color, fg: Color) {
+    let mut buffer = Buffer { fg, bg };
+    buffer.write_fmt(args).expect("Failed to write to VGA");
 }

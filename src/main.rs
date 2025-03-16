@@ -47,7 +47,7 @@ pub enum KernelError {
 impl fmt::Display for KernelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ExitSignal(s) => writeln!(f, "Exit Signal {} recorded", s)?,
+            Self::ExitSignal(s) => write!(f, "Exit Signal {} recorded", s)?,
         }
         Ok(())
     }
@@ -69,23 +69,40 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     }
 }
 
+pub trait Testable {
+    fn name(&self) -> &str;
+    fn run(&self) -> Result<()>;
+}
+
+impl<T> Testable for T
+where
+    T: Fn() -> Result<()>,
+{
+    fn name(&self) -> &str {
+        core::any::type_name::<T>()
+    }
+    fn run(&self) -> Result<()> {
+        self()
+    }
+}
+
 #[cfg(test)]
 macro_rules! tester {
-    ($func: ident) => {
-        match $func() {
+    ($func: expr) => {
+        match $func.run() {
             Ok(_) => {
-                print!("{}   ", stringify!($func));
+                print!("{}   ", $func.name());
                 PrintBuilder::new(format_args!("[ok]"))
                     .fg(crate::io::Color::Green)
                     .print();
-                serial_print!("{}   [ok]", stringify!($func));
+                serial_print!("{}   [ok]", $func.name());
             }
             Err(e) => {
-                print!("{}   ", stringify!($func));
+                print!("{}   ", $func.name());
                 PrintBuilder::new(format_args!("[err]\n{}", e))
                     .fg(crate::io::Color::Red)
                     .print();
-                serial_print!("{}   [err]\n{}", stringify!($func), e);
+                serial_print!("{}   [err]\n{}", $func.name(), e);
             }
         }
         println!();
@@ -94,7 +111,7 @@ macro_rules! tester {
 }
 
 #[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn() -> Result<()>]) {
+pub fn test_runner(tests: &[&dyn Testable]) {
     use lib_os::io::PrintBuilder;
 
     println!("Running {} tests", tests.len());
