@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 pub mod keyboard;
+pub mod serial;
 pub mod vga;
 use core::fmt::{Arguments, Write};
 pub use vga::Color;

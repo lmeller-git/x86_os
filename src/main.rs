@@ -33,7 +33,7 @@ fn kernel_main(_boot_info: &'static BootInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("panicked at {}", info);
-    // exit_qemu(QemuExitCode::Failed);
+    exit_qemu(QemuExitCode::Failed);
     hlt_loop()
 }
 
@@ -70,20 +70,40 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 }
 
 #[cfg(test)]
+macro_rules! tester {
+    ($func: ident) => {
+        match $func() {
+            Ok(_) => {
+                print!("{}   ", stringify!($func));
+                PrintBuilder::new(format_args!("[ok]"))
+                    .fg(crate::io::Color::Green)
+                    .print();
+                serial_print!("{}   [ok]", stringify!($func));
+            }
+            Err(e) => {
+                print!("{}   ", stringify!($func));
+                PrintBuilder::new(format_args!("[err]\n{}", e))
+                    .fg(crate::io::Color::Red)
+                    .print();
+                serial_print!("{}   [err]\n{}", stringify!($func), e);
+            }
+        }
+        println!();
+        serial_println!();
+    };
+}
+
+#[cfg(test)]
 pub fn test_runner(tests: &[&dyn Fn() -> Result<()>]) {
     use lib_os::io::PrintBuilder;
 
     println!("Running {} tests", tests.len());
+    serial_println!("Running {} tests", tests.len());
     for test in tests {
-        match test() {
-            Ok(_) => PrintBuilder::new(format_args!("[ok]"))
-                .fg(crate::io::Color::Green)
-                .print(),
-            Err(_) => PrintBuilder::new(format_args!("[err]"))
-                .fg(crate::io::Color::Red)
-                .print(),
-        }
+        tester!(test);
     }
+    // hlt_loop();
+    // for _ in 0..10000000 {}
     exit_qemu(QemuExitCode::Success);
 }
 
@@ -95,7 +115,12 @@ mod tests {
 
     #[test_case]
     fn test_vga() -> Result<()> {
-        vga::WRITER.lock().write_str("test").unwrap();
+        // vga::WRITER.lock().write_str("test").unwrap();
         Ok(())
+    }
+    #[test_case]
+    fn fail() -> Result<()> {
+        // Ok(())
+        Err(KernelError::ExitSignal(1))
     }
 }
