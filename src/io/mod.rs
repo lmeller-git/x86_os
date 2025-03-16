@@ -2,6 +2,7 @@
 pub mod keyboard;
 pub mod vga;
 use core::fmt::{Arguments, Write};
+pub use vga::Color;
 use x86_64::instructions::interrupts;
 
 // TODO implement Bridge pattern for Writer Backend and possibly multiple Backends (how to handle Chars, Rows, Colors?)
@@ -17,5 +18,16 @@ pub struct Writer<B: WriterBackend> {
 }
 
 pub fn _print(args: Arguments) {
-    interrupts::without_interrupts(|| vga::WRITER.lock().write_fmt(args).unwrap())
+    interrupts::without_interrupts(|| write!(vga::WRITER.lock(), "{}", args).unwrap())
+}
+
+pub fn _print_with_args(args: Arguments, bg: Color, fg: Color) {
+    if let Some(s) = args.as_str() {
+        for byte in s.bytes() {
+            vga::WRITER.lock().write_byte(byte);
+            vga::WRITER.lock().select_prev().unwrap().update(|c| {
+                c.fg(fg).bg(bg);
+            });
+        }
+    }
 }

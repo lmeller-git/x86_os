@@ -1,10 +1,14 @@
-use crate::{io::keyboard::KEYBOARD_BUFFER, print, println, Result};
+use crate::{io::keyboard::KEYBOARD_BUFFER, lib_os::io::PrintBuilder, print, println, Result};
 
 pub fn run() -> Result<()> {
+    PrintBuilder::new(format_args!("Welcome to x86_os\n"))
+        .fg(crate::io::Color::Green)
+        .bg(crate::io::Color::Black)
+        .print();
+
     let mut buf = [0, 0, 0, 0];
     loop {
         let mut i = 0;
-        println!();
         print!("> ");
         loop {
             if let Some(k) = KEYBOARD_BUFFER.get_next() {

@@ -32,7 +32,7 @@ fn kernel_main(_boot_info: &'static BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("panicked at {:#?}", info);
+    println!("panicked at {}", info);
     // exit_qemu(QemuExitCode::Failed);
     hlt_loop()
 }
@@ -70,10 +70,19 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 }
 
 #[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn()]) {
-    // println!("Running {} tests", tests.len());
+pub fn test_runner(tests: &[&dyn Fn() -> Result<()>]) {
+    use lib_os::io::PrintBuilder;
+
+    println!("Running {} tests", tests.len());
     for test in tests {
-        test();
+        match test() {
+            Ok(_) => PrintBuilder::new(format_args!("[ok]"))
+                .fg(crate::io::Color::Green)
+                .print(),
+            Err(_) => PrintBuilder::new(format_args!("[err]"))
+                .fg(crate::io::Color::Red)
+                .print(),
+        }
     }
     exit_qemu(QemuExitCode::Success);
 }
@@ -85,7 +94,8 @@ mod tests {
     use io::vga;
 
     #[test_case]
-    fn test_vga() {
-        vga::WRITER.lock().write_str("test").unwrap()
+    fn test_vga() -> Result<()> {
+        vga::WRITER.lock().write_str("test").unwrap();
+        Ok(())
     }
 }

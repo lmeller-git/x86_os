@@ -41,12 +41,12 @@ impl ColorCode {
         Self((bg as u8) << 4 | (fg as u8))
     }
 
-    fn fg(mut self, fg: Color) -> Self {
+    fn fg(&mut self, fg: Color) -> &mut Self {
         self.0 = (self.0 & 0xF0) | fg as u8;
         self
     }
 
-    fn bg(mut self, bg: Color) -> Self {
+    fn bg(&mut self, bg: Color) -> &mut Self {
         self.0 = (self.0 & 0x0F) | ((bg as u8) << 4);
         self
     }
@@ -166,7 +166,10 @@ pub struct VGAWriter {
 impl VGAWriter {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
-            b'\n' => self.shift_up(),
+            b'\n' => {
+                // self.write_byte(b' ');
+                self.shift_up();
+            }
             byte => {
                 if self.column >= BUFFER_WIDTH {
                     self.shift_up();
@@ -177,10 +180,16 @@ impl VGAWriter {
         }
     }
 
+    fn write_char_unchecked(&mut self, char: ScreenChar, row: usize, col: usize) {
+        if let Some(c) = self.buffer.get_mut(row, col) {
+            c.write(char);
+        }
+    }
+
     fn write_byte_unchecked(&mut self, byte: u8, row: usize, col: usize) {
         if let Some(c) = self.buffer.get_mut(row, col) {
             c.update(|c| {
-                c.char(byte);
+                c.char(byte).fg(Color::White).bg(Color::Black);
             });
         }
     }
@@ -189,7 +198,7 @@ impl VGAWriter {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.get(row, col).unwrap().read();
-                self.write_byte_unchecked(character.ascii_character, row - 1, col);
+                self.write_char_unchecked(character, row - 1, col);
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -200,7 +209,7 @@ impl VGAWriter {
         for row in (0..BUFFER_HEIGHT - 1).rev() {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.get(row, col).unwrap().read();
-                self.write_byte_unchecked(character.ascii_character, row + 1, col);
+                self.write_char_unchecked(character, row + 1, col);
             }
         }
         self.clear_row(0);
