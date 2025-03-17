@@ -34,3 +34,17 @@ fn should_exit(buf: &[u8; 4]) -> Result<()> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn test_exit() -> Result<()> {
+        let buf = b"exit";
+        assert!(should_exit(buf).is_err_and(|e| e == crate::KernelError::ExitSignal(0)));
+        let buf = b"1234";
+        assert!(should_exit(buf).is_ok());
+        Ok(())
+    }
+}

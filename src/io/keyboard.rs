@@ -36,3 +36,18 @@ lazy_static! {
         char: Mutex::new(' ')
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Result;
+
+    #[test_case]
+    fn get_keyboard() -> Result<()> {
+        let test_char = '_';
+        _ = KEYBOARD_BUFFER.get_next();
+        assert!(KEYBOARD_BUFFER.put_next(test_char));
+        assert_eq!(KEYBOARD_BUFFER.get_next().unwrap(), '_');
+        Ok(())
+    }
+}

@@ -47,3 +47,22 @@ pub fn _print_with_args(args: Arguments, bg: Color, fg: Color) {
     let mut buffer = Buffer { fg, bg };
     buffer.write_fmt(args).expect("Failed to write to VGA");
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::Result;
+
+    use super::{keyboard::KEYBOARD_BUFFER, *};
+
+    #[test_case]
+    fn test_print() -> Result<()> {
+        _print(format_args!(""));
+        Ok(())
+    }
+
+    #[test_case]
+    fn test_print_args() -> Result<()> {
+        _print_with_args(format_args!(""), Color::Black, Color::White);
+        Ok(())
+    }
+}

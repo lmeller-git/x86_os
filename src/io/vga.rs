@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 use core::fmt;
 use lazy_static::lazy_static;
@@ -275,4 +275,10 @@ lazy_static! {
         row: BUFFER_HEIGHT - 1,
         buffer: unsafe { &mut *VGABuffer::new() },
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Result;
 }

@@ -39,7 +39,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 pub type Result<T> = core::result::Result<T, KernelError>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum KernelError {
     ExitSignal(u8),
 }
@@ -120,24 +120,15 @@ pub fn test_runner(tests: &[&dyn Testable]) {
         tester!(test);
     }
     // hlt_loop();
-    // for _ in 0..10000000 {}
     exit_qemu(QemuExitCode::Success);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::fmt::Write;
-    use io::vga;
 
     #[test_case]
-    fn test_vga() -> Result<()> {
-        // vga::WRITER.lock().write_str("test").unwrap();
-        Ok(())
-    }
-    #[test_case]
     fn fail() -> Result<()> {
-        // Ok(())
         Err(KernelError::ExitSignal(1))
     }
 }
