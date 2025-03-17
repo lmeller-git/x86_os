@@ -19,7 +19,9 @@ jobs:
       with:
         toolchain: nightly
         override: true
-        components: rust-src
+        components:
+          - rust-src
+          - llvm-tools-preview
 
     - name: Install target
       run: rustup target add x86_64-unknown-none
