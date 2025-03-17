@@ -87,48 +87,40 @@ where
 }
 
 #[cfg(test)]
-macro_rules! tester {
-    ($func: expr) => {
-        match $func.run() {
+pub fn test_runner(tests: &[&dyn Testable]) {
+    use lib_os::io::PrintBuilder;
+    let mut failed = false;
+    println!("Running {} tests", tests.len());
+    serial_println!("Running {} tests", tests.len());
+    for test in tests {
+        match test.run() {
             Ok(_) => {
-                print!("{}   ", $func.name());
+                print!("{}   ", test.name());
                 PrintBuilder::new(format_args!("[ok]"))
                     .fg(crate::io::Color::Green)
                     .print();
-                serial_print!("{}   [ok]", $func.name());
+                serial_print!("{}   [ok]", test.name());
             }
             Err(e) => {
-                print!("{}   ", $func.name());
+                print!("{}   ", test.name());
                 PrintBuilder::new(format_args!("[err]\n{}", e))
                     .fg(crate::io::Color::Red)
                     .print();
-                serial_print!("{}   [err]\n{}", $func.name(), e);
+                serial_print!("{}   [err]\n{}", test.name(), e);
+                failed = true;
             }
         }
         println!();
         serial_println!();
-    };
-}
-
-#[cfg(test)]
-pub fn test_runner(tests: &[&dyn Testable]) {
-    use lib_os::io::PrintBuilder;
-
-    println!("Running {} tests", tests.len());
-    serial_println!("Running {} tests", tests.len());
-    for test in tests {
-        tester!(test);
     }
     // hlt_loop();
+    if failed {
+        exit_qemu(QemuExitCode::Failed);
+    }
     exit_qemu(QemuExitCode::Success);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test_case]
-    fn fail() -> Result<()> {
-        Err(KernelError::ExitSignal(1))
-    }
+    // use super::*;
 }
