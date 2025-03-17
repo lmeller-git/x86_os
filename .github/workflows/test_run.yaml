@@ -24,8 +24,14 @@ jobs:
     - name: Install target
       run: rustup target add x86_64-unknown-none
 
+    - name: install deps
+      run: cargo install bootimage
+
     # - name: Build 
       # run: cargo build --release
 
+    - name: Bootimage
+      run: cargo bootimage
+      
     - name: Test
       run: cargo test
