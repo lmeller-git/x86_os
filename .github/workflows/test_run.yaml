@@ -22,7 +22,7 @@ jobs:
         components: rust-src
 
     - name: Install target
-      run: rustup target add x_86-unknown-none
+      run: rustup target add x86_64-unknown-none
 
     # - name: Build 
       # run: cargo build --release
