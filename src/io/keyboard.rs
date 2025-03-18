@@ -9,9 +9,9 @@ pub struct KeyBoardBuffer {
 
 impl KeyBoardBuffer {
     pub fn get_next(&self) -> Option<char> {
-        if self.new_input.load(Ordering::Relaxed) {
+        if self.new_input.load(Ordering::SeqCst) {
             let c = self.char.lock();
-            self.new_input.store(false, Ordering::Relaxed);
+            self.new_input.store(false, Ordering::SeqCst);
             Some(*c)
         } else {
             None
@@ -19,12 +19,12 @@ impl KeyBoardBuffer {
     }
 
     pub fn put_next(&self, ch: char) -> bool {
-        if self.new_input.load(Ordering::Relaxed) {
+        if self.new_input.load(Ordering::SeqCst) {
             false
         } else {
             let mut c = self.char.lock();
             *c = ch;
-            self.new_input.store(true, Ordering::Relaxed);
+            self.new_input.store(true, Ordering::SeqCst);
             true
         }
     }

@@ -1,6 +1,6 @@
 use x86_64::{
     structures::paging::{OffsetPageTable, PageTable},
-    PhysAddr, VirtAddr,
+    VirtAddr,
 };
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {

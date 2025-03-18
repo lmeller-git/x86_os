@@ -50,9 +50,8 @@ pub fn _print_with_args(args: Arguments, bg: Color, fg: Color) {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::Result;
-
-    use super::{keyboard::KEYBOARD_BUFFER, *};
 
     #[test_case]
     fn test_print() -> Result<()> {

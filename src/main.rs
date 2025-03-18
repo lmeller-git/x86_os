@@ -147,5 +147,25 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use alloc::{boxed::Box, vec};
+
+    use super::*;
+
+    #[test_case]
+    fn test_heap() -> Result<()> {
+        let heap_value_1 = Box::new(42);
+        assert_eq!(*heap_value_1, 42);
+        let v = vec![42, 42, 42];
+        assert_eq!(v.as_slice(), &[42, 42, 42]);
+        Ok(())
+    }
+
+    #[test_case]
+    fn test_heap_reuse() -> Result<()> {
+        for i in 0..mem::heap::HEAP_SIZE {
+            let x = Box::new(i);
+            assert_eq!(*x, i);
+        }
+        Ok(())
+    }
 }
