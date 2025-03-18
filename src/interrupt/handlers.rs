@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
-use x86_64::structures::idt::InterruptStackFrame;
+use x86_64::structures::idt::{InterruptStackFrame, PageFaultErrorCode};
 
-use crate::{io::keyboard::KEYBOARD_BUFFER, print, println};
+use crate::{io::keyboard::KEYBOARD_BUFFER, lib_os::hlt_loop, print, println};
 use pic8259::ChainedPics;
 
 pub extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
@@ -54,6 +54,19 @@ pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: Interrupt
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard as u8);
     }
+}
+
+pub extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
