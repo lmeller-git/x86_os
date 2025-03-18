@@ -9,24 +9,41 @@ use bootloader::{entry_point, BootInfo};
 use core::fmt;
 use core::panic::PanicInfo;
 use lib_os::hlt_loop;
+use lib_os::io::PrintBuilder;
+
 mod interface;
 mod interrupt;
 mod io;
 mod lib_os;
+mod mem;
+extern crate alloc;
 
 entry_point!(kernel_main);
 
-fn kernel_main(_boot_info: &'static BootInfo) -> ! {
-    println!("Initializing Interrupts...");
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    println!("VGA buffer initialized");
+
+    print!("Initializing Interrupts...");
     interrupt::init();
+    PrintBuilder::new(format_args!("    [Ok]\n"))
+        .fg(io::Color::Green)
+        .print();
 
-    use x86_64::registers::control::Cr3;
+    print!("Initializing Paging...");
+    let (mut mapper, mut frame_allocator) = unsafe {
+        mem::paging::init(boot_info.physical_memory_offset, &boot_info.memory_map)
+            .expect("could not initialize paging")
+    };
+    PrintBuilder::new(format_args!("    [Ok]\n"))
+        .fg(io::Color::Green)
+        .print();
 
-    let (level_4_page_table, _) = Cr3::read();
-    println!(
-        "Level 4 page table at: {:?}",
-        level_4_page_table.start_address()
-    );
+    print!("Initializing Heap...");
+    mem::heap::init(&mut mapper, &mut frame_allocator).expect("heap initiialization failed");
+    PrintBuilder::new(format_args!("    [Ok]\n"))
+        .fg(io::Color::Green)
+        .print();
+
     #[cfg(test)]
     test_main();
     match interface::run() {
