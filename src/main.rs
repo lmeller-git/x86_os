@@ -10,12 +10,15 @@ use core::fmt;
 use core::panic::PanicInfo;
 use lib_os::hlt_loop;
 use lib_os::io::PrintBuilder;
+use task::executor::Executor;
+use task::Task;
 
 mod interface;
 mod interrupt;
 mod io;
 mod lib_os;
 mod mem;
+mod task;
 extern crate alloc;
 
 entry_point!(kernel_main);
@@ -46,13 +49,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     #[cfg(test)]
     test_main();
-    match interface::run() {
-        Ok(_) => exit_qemu(QemuExitCode::Success),
-        Err(e) => match e {
-            KernelError::ExitSignal(_s) => exit_qemu(QemuExitCode::Success),
-        },
-    }
-    hlt_loop()
+
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(interface::print_keypresses()));
+    PrintBuilder::new(format_args!("\nWelcome to x86_os\n\n"))
+        .fg(io::Color::Green)
+        .print();
+    executor.run()
 }
 
 #[cfg(not(test))]
@@ -150,6 +153,7 @@ pub fn test_runner(tests: &[&dyn Testable]) {
         println!();
         serial_println!();
     }
+    // hlt_loop();
     if failed {
         exit_qemu(QemuExitCode::Failed);
     }
@@ -158,9 +162,8 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 
 #[cfg(test)]
 mod tests {
-    use alloc::{boxed::Box, vec};
-
     use super::*;
+    use alloc::{boxed::Box, vec};
 
     #[test_case]
     fn test_heap() -> Result<()> {

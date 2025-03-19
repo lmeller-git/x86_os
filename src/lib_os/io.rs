@@ -19,6 +19,8 @@ pub struct PrintBuilder<'a> {
     bg: crate::io::Color,
     fg: crate::io::Color,
 }
+
+#[allow(dead_code)]
 impl<'a> PrintBuilder<'a> {
     pub fn new(args: fmt::Arguments<'a>) -> Self {
         Self {

@@ -1,29 +1,7 @@
-use crate::{io::keyboard::KEYBOARD_BUFFER, lib_os::io::PrintBuilder, print, println, Result};
+use futures_util::StreamExt;
+use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 
-pub fn run() -> Result<()> {
-    PrintBuilder::new(format_args!("Welcome to x86_os\n"))
-        .fg(crate::io::Color::Green)
-        .bg(crate::io::Color::Black)
-        .print();
-
-    let mut buf = [0, 0, 0, 0];
-    loop {
-        let mut i = 0;
-        print!("> ");
-        loop {
-            let k = KEYBOARD_BUFFER.get_next();
-            print!("{}", k);
-            if k == '\n' {
-                break;
-            }
-            if i < 4 {
-                buf[i] = k as u8;
-                i += 1;
-            }
-        }
-        should_exit(&buf)?
-    }
-}
+use crate::{io::keyboard::ScancodeStream, print, println, Result};
 
 fn should_exit(buf: &[u8; 4]) -> Result<()> {
     if buf == b"exit" {
@@ -31,6 +9,49 @@ fn should_exit(buf: &[u8; 4]) -> Result<()> {
         Err(crate::KernelError::ExitSignal(0))
     } else {
         Ok(())
+    }
+}
+
+fn exit(buf: &[u8; 4]) {
+    if should_exit(buf).is_err() {
+        crate::exit_qemu(crate::QemuExitCode::Success);
+    }
+}
+
+pub async fn print_keypresses() {
+    print!("> ");
+    let mut buf: [u8; 4] = [0, 0, 0, 0];
+    let mut i = 0;
+    let mut scancodes = ScancodeStream::new();
+    let mut keyboard = Keyboard::new(
+        ScancodeSet1::new(),
+        layouts::Us104Key,
+        HandleControl::Ignore,
+    );
+
+    while let Some(scancode) = scancodes.next().await {
+        if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
+            if let Some(key) = keyboard.process_keyevent(key_event) {
+                match key {
+                    DecodedKey::Unicode(character) => {
+                        if character == '\n' {
+                            exit(&buf);
+                            i = 0;
+                            print!("\n> ");
+                        } else if i < 4 {
+                            buf[i] = character as u8;
+                            i += 1;
+                            print!("{}", character);
+                        } else {
+                            i = 0;
+                            buf[i] = character as u8;
+                            print!("{}", character);
+                        }
+                    }
+                    DecodedKey::RawKey(key) => print!("{:?}", key),
+                }
+            }
+        }
     }
 }
 

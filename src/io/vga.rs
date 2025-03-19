@@ -78,6 +78,9 @@ impl ScreenChar {
         self.ascii_character = char;
         self
     }
+    pub fn get_char(&self) -> u8 {
+        self.ascii_character
+    }
 }
 
 pub struct ScreenRow<'a> {
@@ -252,6 +255,10 @@ impl VGAWriter {
         self.buffer
             .get_row_mut(row)
             .map(|row| ScreenRow { chars: row })
+    }
+
+    pub fn current_pos(&self) -> (usize, usize) {
+        (self.row, self.column)
     }
 }
 
