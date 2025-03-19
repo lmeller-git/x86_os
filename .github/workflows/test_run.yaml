@@ -14,15 +14,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # - name: Set up Rust
-      # uses: actions-rs/toolchain@v1
-      # with:
-        # toolchain: nightly
-        # override: true
-        # components: rust-src llvm-tools-preview
-
     - name: Install Rust Nightly
-      run: rustup show active-toolchain || rustup install nightly
+      run: rustup install nightly
       
     - name: Add Rust Components
       run: rustup component add rust-src llvm-tools-preview --toolchain nightly
@@ -34,9 +27,6 @@ jobs:
       run: |
         cargo install bootimage
         sudo apt-get update && sudo apt-get install -y qemu-system-x86
-
-    # - name: Build 
-      # run: cargo build --release
 
     - name: Bootimage
       run: cargo bootimage --target-dir target/bootimage

@@ -55,9 +55,21 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     hlt_loop()
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("panicked at {}", info);
+    exit_qemu(QemuExitCode::Failed);
+    hlt_loop()
+}
+
+#[cfg(test)]
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    PrintBuilder::new(format_args!("[err]\n"))
+        .fg(io::Color::Red)
+        .print();
+    serial_println!("[err]");
     exit_qemu(QemuExitCode::Failed);
     hlt_loop()
 }
@@ -118,27 +130,26 @@ pub fn test_runner(tests: &[&dyn Testable]) {
     println!("Running {} tests", tests.len());
     serial_println!("Running {} tests", tests.len());
     for test in tests {
+        print!("{}   ", test.name());
+        serial_print!("{}    ", test.name());
         match test.run() {
             Ok(_) => {
-                print!("{}   ", test.name());
                 PrintBuilder::new(format_args!("[ok]"))
                     .fg(crate::io::Color::Green)
                     .print();
-                serial_print!("{}   [ok]", test.name());
+                serial_print!("[ok]");
             }
             Err(e) => {
-                print!("{}   ", test.name());
                 PrintBuilder::new(format_args!("[err]\n{}", e))
                     .fg(crate::io::Color::Red)
                     .print();
-                serial_print!("{}   [err]\n{}", test.name(), e);
+                serial_print!("[err]\n{}", e);
                 failed = true;
             }
         }
         println!();
         serial_println!();
     }
-    // hlt_loop();
     if failed {
         exit_qemu(QemuExitCode::Failed);
     }

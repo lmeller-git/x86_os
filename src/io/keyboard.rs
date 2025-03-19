@@ -86,10 +86,9 @@ impl LongKeyBoardBuffer {
 }
 
 lazy_static! {
-    pub static ref KEYBOARD_BUFFER: LongKeyBoardBuffer = LongKeyBoardBuffer { char: spin::Mutex::new(alloc::collections::VecDeque::new()) } ;//{
-        // new_input: false.into(),
-        // char: Mutex::new(' ')
-    // };
+    pub static ref KEYBOARD_BUFFER: LongKeyBoardBuffer = LongKeyBoardBuffer {
+        char: spin::Mutex::new(alloc::collections::VecDeque::new())
+    };
 }
 
 #[cfg(test)]
@@ -100,9 +99,13 @@ mod tests {
     #[test_case]
     fn get_keyboard() -> Result<()> {
         let test_char = '_';
-        _ = KEYBOARD_BUFFER.get_next();
+        // _ = KEYBOARD_BUFFER.get_next();
         KEYBOARD_BUFFER.put_next(test_char);
         assert_eq!(KEYBOARD_BUFFER.get_next(), test_char);
+        KEYBOARD_BUFFER.put_next(test_char);
+        KEYBOARD_BUFFER.put_next('4');
+        assert_eq!(KEYBOARD_BUFFER.get_next(), test_char);
+        assert_eq!(KEYBOARD_BUFFER.get_next(), '4');
         Ok(())
     }
 }
