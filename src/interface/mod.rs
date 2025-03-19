@@ -11,15 +11,14 @@ pub fn run() -> Result<()> {
         let mut i = 0;
         print!("> ");
         loop {
-            if let Some(k) = KEYBOARD_BUFFER.get_next() {
-                print!("{}", k);
-                if k == '\n' {
-                    break;
-                }
-                if i < 4 {
-                    buf[i] = k as u8;
-                    i += 1;
-                }
+            let k = KEYBOARD_BUFFER.get_next();
+            print!("{}", k);
+            if k == '\n' {
+                break;
+            }
+            if i < 4 {
+                buf[i] = k as u8;
+                i += 1;
             }
         }
         should_exit(&buf)?

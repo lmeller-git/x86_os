@@ -10,9 +10,9 @@ pub struct KeyBoardBuffer {
 impl KeyBoardBuffer {
     pub fn get_next(&self) -> Option<char> {
         if self.new_input.load(Ordering::SeqCst) {
-            let c = self.char.lock();
+            let c = { *self.char.lock() };
             self.new_input.store(false, Ordering::SeqCst);
-            Some(*c)
+            Some(c)
         } else {
             None
         }
@@ -22,19 +22,74 @@ impl KeyBoardBuffer {
         if self.new_input.load(Ordering::SeqCst) {
             false
         } else {
-            let mut c = self.char.lock();
-            *c = ch;
+            {
+                *self.char.lock() = ch;
+            }
             self.new_input.store(true, Ordering::SeqCst);
             true
         }
     }
 }
 
+pub struct HaltingKeyBoardBuffer {
+    new_input: AtomicBool,
+    char: Mutex<char>,
+}
+
+impl HaltingKeyBoardBuffer {
+    pub fn get_next(&self) -> char {
+        while !self.new_input.load(Ordering::SeqCst) {
+            x86_64::instructions::hlt();
+        }
+        let c = { *self.char.lock() };
+        self.new_input.store(false, Ordering::SeqCst);
+        c
+    }
+
+    pub fn put_next(&self, ch: char) -> bool {
+        if self.new_input.load(Ordering::SeqCst) {
+            false
+        } else {
+            {
+                *self.char.lock() = ch;
+            }
+            self.new_input.store(true, Ordering::SeqCst);
+            true
+        }
+    }
+}
+
+pub struct LongKeyBoardBuffer {
+    char: Mutex<alloc::collections::VecDeque<char>>,
+}
+
+impl LongKeyBoardBuffer {
+    pub fn get_next(&self) -> char {
+        loop {
+            if !self.char.lock().is_empty() {
+                break;
+            }
+            x86_64::instructions::hlt();
+        }
+        let c = {
+            self.char
+                .lock()
+                .pop_front()
+                .expect("char consumed by other thread, while this one tried to use it")
+        };
+        c
+    }
+
+    pub fn put_next(&self, ch: char) {
+        self.char.lock().push_back(ch);
+    }
+}
+
 lazy_static! {
-    pub static ref KEYBOARD_BUFFER: KeyBoardBuffer = KeyBoardBuffer {
-        new_input: false.into(),
-        char: Mutex::new(' ')
-    };
+    pub static ref KEYBOARD_BUFFER: LongKeyBoardBuffer = LongKeyBoardBuffer { char: spin::Mutex::new(alloc::collections::VecDeque::new()) } ;//{
+        // new_input: false.into(),
+        // char: Mutex::new(' ')
+    // };
 }
 
 #[cfg(test)]
@@ -46,8 +101,8 @@ mod tests {
     fn get_keyboard() -> Result<()> {
         let test_char = '_';
         _ = KEYBOARD_BUFFER.get_next();
-        assert!(KEYBOARD_BUFFER.put_next(test_char));
-        assert_eq!(KEYBOARD_BUFFER.get_next().unwrap(), '_');
+        KEYBOARD_BUFFER.put_next(test_char);
+        assert_eq!(KEYBOARD_BUFFER.get_next(), test_char);
         Ok(())
     }
 }

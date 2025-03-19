@@ -44,7 +44,7 @@ pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: Interrupt
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode(character) => while !KEYBOARD_BUFFER.put_next(character) {},
+                DecodedKey::Unicode(character) => KEYBOARD_BUFFER.put_next(character), //while !KEYBOARD_BUFFER.put_next(character) {},
                 DecodedKey::RawKey(key) => print!("{:?}", key),
             }
         }
