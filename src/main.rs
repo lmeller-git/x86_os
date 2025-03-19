@@ -12,13 +12,16 @@ use lib_os::hlt_loop;
 use lib_os::io::PrintBuilder;
 use task::executor::Executor;
 use task::Task;
+use thiserror::Error;
 
+mod fs;
 mod interface;
 mod interrupt;
 mod io;
 mod lib_os;
 mod mem;
 mod task;
+mod term;
 extern crate alloc;
 
 entry_point!(kernel_main);
@@ -79,18 +82,10 @@ fn panic(_info: &PanicInfo) -> ! {
 
 pub type Result<T> = core::result::Result<T, KernelError>;
 
-#[derive(Debug, PartialEq, PartialOrd, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Error)]
 pub enum KernelError {
+    #[error("exit with signal {0}")]
     ExitSignal(u8),
-}
-
-impl fmt::Display for KernelError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ExitSignal(s) => write!(f, "Exit Signal {} recorded", s)?,
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

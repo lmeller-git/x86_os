@@ -10,6 +10,7 @@ linked_list_allocator = "0.10.5"
 pc-keyboard = "0.8.0"
 pic8259 = "0.11.0"
 spin = "0.9.8"
+thiserror = {version  = "2.0.12", default-features = false}
 uart_16550 = "0.3.2"
 volatile = "0.2.6"
 x86_64 = "0.15.2"
