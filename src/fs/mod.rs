@@ -1,56 +1,99 @@
-use alloc::{
-    rc::Rc,
-    string::String,
-    vec::{self, Vec},
-};
-use core::{fmt::Display, slice};
-use layout::DirNode;
+use alloc::{string::String, vec::Vec};
+use core::{fmt::Display, ops::Index};
 use thiserror::Error;
-
 mod layout;
 mod operations;
+pub use operations::{init, insert_dir, insert_file, read, remove, write};
 
 pub type Result<T> = core::result::Result<T, FSError>;
 
 #[derive(Error, Debug)]
 pub enum FSError {
     #[error("the node {0} does not exist")]
-    NodeNotFound(Path),
+    NodeNotFound(PathBuf),
     #[error("the node {0} already exists")]
-    NodeExists(Path),
+    NodeExists(PathBuf),
+    #[error("the node {0} does not implement operation {1}")]
+    NotImplemented(String, String),
 }
 
-pub struct Fs {
-    root: Rc<DirNode>,
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct Path<'a> {
+    elements: Vec<&'a str>,
 }
 
-impl Fs {
-    fn new() -> Self {
-        Self {
-            root: Rc::new(DirNode::new()),
+impl<'a> Path<'a> {
+    pub fn new(p: &'a str) -> Self {
+        let s = p.split('/').collect::<Vec<&'a str>>();
+        Self { elements: s }
+    }
+
+    pub fn split_last(&self) -> (Self, Self) {
+        if self.elements.is_empty() {
+            return (Self::new(""), Self::new(""));
+        }
+        let (first, last) = self.elements.split_at(self.elements.len() - 1);
+        (
+            Self {
+                elements: first.to_vec(),
+            },
+            Self {
+                elements: last.to_vec(),
+            },
+        )
+    }
+    pub fn get(&self, i: usize) -> Option<&'a str> {
+        if i >= self.elements.len() {
+            None
+        } else {
+            Some(self.elements[i])
         }
     }
-    fn get(&self, p: Path) -> Rc<impl FSNode> {
-        self.root.clone()
+}
+
+impl<'a> Index<usize> for Path<'a> {
+    type Output = str;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.elements[index]
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct Path {
-    p: Vec<String>,
-}
-
-impl Display for Path {
+impl<'a> Display for Path<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Ok(())
     }
 }
 
-pub trait FSNode {}
-
-pub struct FSNodeData {
-    data: FSMetaData,
-    node: Rc<dyn FSNode>,
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PathBuf {
+    elements: Vec<String>,
 }
 
-struct FSMetaData {}
+impl Display for PathBuf {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Ok(())
+    }
+}
+
+impl<'a> From<Path<'a>> for PathBuf {
+    fn from(value: Path) -> Self {
+        let p = value
+            .elements
+            .into_iter()
+            .map(|p| p.into())
+            .collect::<Vec<String>>();
+        Self { elements: p }
+    }
+}
+
+impl<'a> From<&Path<'a>> for PathBuf {
+    fn from(value: &Path) -> Self {
+        let p = value
+            .elements
+            .clone()
+            .into_iter()
+            .map(|p| p.into())
+            .collect::<Vec<String>>();
+        Self { elements: p }
+    }
+}

@@ -6,7 +6,6 @@
 #![feature(abi_x86_interrupt)]
 
 use bootloader::{entry_point, BootInfo};
-use core::fmt;
 use core::panic::PanicInfo;
 use lib_os::hlt_loop;
 use lib_os::io::PrintBuilder;
@@ -50,6 +49,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         .fg(io::Color::Green)
         .print();
 
+    print!("Initializing file system...");
+    fs::init();
+    PrintBuilder::new(format_args!("    [Ok]\n"))
+        .fg(io::Color::Green)
+        .print();
+
     #[cfg(test)]
     test_main();
 
@@ -65,7 +70,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("panicked at {}", info);
-    exit_qemu(QemuExitCode::Failed);
+    // exit_qemu(QemuExitCode::Failed);
     hlt_loop()
 }
 
