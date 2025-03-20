@@ -1,23 +1,42 @@
-mod read_write;
+//TODO make async
 
-use super::layout::{Dir, File, INode};
+use alloc::vec::Vec;
+use lazy_static::lazy_static;
+use spin::mutex::Mutex;
 
-pub(in crate::fs) trait Visitable<V: Visitor>: Sized {
-    fn accept(&self, visitor: &mut V) -> V::Output;
-    fn accept_mut(&mut self, visitor: &mut V) -> V::Output;
+use crate::fs::layout::FS;
+
+use super::{layout::NodeData, Path, Result};
+
+pub fn read(p: &Path) -> Result<Vec<u8>> {
+    FILESYSTEM.lock().read(p)
 }
-pub(in crate::fs) trait Visitor: Sized {
-    type Output;
-    fn visit_inode(&mut self, inode: &INode) -> Self::Output;
-    fn visit_file(&mut self, file: &File) -> Self::Output;
-    fn visit_dir(&mut self, dir: &Dir) -> Self::Output;
-    fn visit_inode_mut(&mut self, inode: &mut INode) -> Self::Output {
-        self.visit_inode(inode)
-    }
-    fn visit_file_mut(&mut self, file: &mut File) -> Self::Output {
-        self.visit_file(file)
-    }
-    fn visit_dir_mut(&mut self, dir: &mut Dir) -> Self::Output {
-        self.visit_dir(dir)
-    }
+
+pub fn write(p: &Path, content: Vec<u8>) -> Result<()> {
+    FILESYSTEM.lock().write(p, content)
+}
+
+pub fn remove(p: &Path) -> Result<()> {
+    FILESYSTEM.lock().delete(p)
+}
+
+pub fn insert_file(p: &Path) -> Result<()> {
+    FILESYSTEM.lock().insert(p, NodeData::file())
+}
+
+pub fn insert_dir(p: &Path) -> Result<()> {
+    FILESYSTEM.lock().insert(p, NodeData::dir())
+}
+
+lazy_static! {
+    pub static ref FILESYSTEM: Mutex<FS> = Mutex::new(FS::new());
+}
+
+pub fn init() {
+    let p = Path::new("/test");
+    let content = (b"hello world").to_vec();
+    insert_file(&p).expect("test file save failed");
+    write(&p, content.clone()).expect("write to test file failed");
+    assert_eq!(read(&p).expect("read from test file failed"), content);
+    remove(&p).expect("removal of test file failed");
 }
