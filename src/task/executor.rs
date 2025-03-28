@@ -59,7 +59,7 @@ impl Executor {
     }
 }
 
-struct TaskWaker {
+pub struct TaskWaker {
     task_id: TaskId,
     task_queue: Arc<ArrayQueue<TaskId>>,
 }
@@ -69,7 +69,7 @@ impl TaskWaker {
         self.task_queue.push(self.task_id).expect("task_queue full");
     }
 
-    fn waker(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+    pub fn waker(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
         Waker::from(Arc::new(TaskWaker {
             task_id,
             task_queue,
