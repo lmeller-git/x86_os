@@ -10,7 +10,7 @@ use futures_util::task::AtomicWaker;
 pub mod executor;
 
 pub struct Task {
-    id: TaskId,
+    pub id: TaskId,
     future: Pin<Box<dyn Future<Output = ()>>>,
 }
 
@@ -27,7 +27,7 @@ impl Task {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct TaskId(u64);
+pub struct TaskId(u64);
 
 impl TaskId {
     fn new() -> Self {

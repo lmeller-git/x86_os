@@ -2,7 +2,9 @@ use super::{Task, TaskId};
 use alloc::{collections::BTreeMap, sync::Arc, task::Wake};
 use core::task::{Context, Poll, Waker};
 use crossbeam_queue::ArrayQueue;
+use spin::Mutex;
 
+#[allow(private_interfaces)]
 pub struct Executor {
     tasks: BTreeMap<TaskId, Task>,
     task_queue: Arc<ArrayQueue<TaskId>>,
@@ -82,6 +84,28 @@ impl Wake for TaskWaker {
 
     fn wake_by_ref(self: &Arc<Self>) {
         self.wake_task();
+    }
+}
+
+pub struct TaskSubmitter {
+    pub task_queue: Arc<ArrayQueue<TaskId>>,
+    pub tasks: Arc<Mutex<BTreeMap<TaskId, Task>>>,
+}
+
+#[allow(private_interfaces)]
+impl TaskSubmitter {
+    pub fn new() -> Self {
+        Self {
+            task_queue: Arc::new(ArrayQueue::new(100)),
+            tasks: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+    pub fn submit(&self, task: Task) {
+        let task_id = task.id;
+        if self.tasks.lock().insert(task.id, task).is_some() {
+            panic!("task with same ID already in tasks");
+        }
+        self.task_queue.push(task_id).expect("queue full");
     }
 }
 

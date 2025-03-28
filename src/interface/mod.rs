@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-
+pub mod shell;
 use crate::{io::keyboard::ScancodeStream, print, println, Result};
 
 fn should_exit(buf: &[u8; 4]) -> Result<()> {

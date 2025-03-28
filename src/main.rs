@@ -5,8 +5,10 @@
 #![reexport_test_harness_main = "test_main"]
 #![feature(abi_x86_interrupt)]
 
+use alloc::boxed::Box;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use io::keyboard::ScancodeStream;
 use lib_os::hlt_loop;
 use lib_os::io::PrintBuilder;
 use task::executor::Executor;
@@ -58,8 +60,11 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
+    let io: &'static mut ScancodeStream = Box::leak(Box::new(ScancodeStream::new()));
     let mut executor = Executor::new();
-    executor.spawn(Task::new(interface::print_keypresses()));
+    // EXECUT.set(executor);
+    // executor.spawn(Task::new(interface::print_keypresses()));
+    executor.spawn(Task::new(interface::shell::run_shell(io)));
     PrintBuilder::new(format_args!("\nWelcome to x86_os\n\n"))
         .fg(io::Color::Green)
         .print();
