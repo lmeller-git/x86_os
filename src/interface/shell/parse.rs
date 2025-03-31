@@ -13,6 +13,8 @@ use crate::{
 pub struct Cmd {
     pub cmd: String,
     pub args: Args,
+    pub out: Option<String>,
+    pub err: Option<String>,
 }
 
 #[derive(Clone)]

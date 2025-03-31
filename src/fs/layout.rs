@@ -28,6 +28,9 @@ impl Node {
             NodeData::File(_) => None,
         }
     }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 pub(super) enum NodeData {

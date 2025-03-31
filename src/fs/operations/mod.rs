@@ -1,12 +1,15 @@
 //TODO make async
 
-use alloc::vec::Vec;
+use alloc::{string::String, sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
 use crate::fs::layout::FS;
 
-use super::{layout::NodeData, Path, Result};
+use super::{
+    layout::{Node, NodeData},
+    FSError, Path, Result,
+};
 
 pub fn read(p: &Path) -> Result<Vec<u8>> {
     FILESYSTEM.lock().read(p)
@@ -26,6 +29,27 @@ pub fn insert_file(p: &Path) -> Result<()> {
 
 pub fn insert_dir(p: &Path) -> Result<()> {
     FILESYSTEM.lock().insert(p, NodeData::dir())
+}
+
+pub struct NodeInfo {
+    pub children: Vec<String>,
+    pub name: String,
+}
+
+pub fn get_node_info(p: &Path) -> Result<NodeInfo> {
+    if let Some(n) = FILESYSTEM.lock().get(p) {
+        let children = match &n.lock().data {
+            NodeData::Dir(d) => d.children.iter().map(|c| c.lock().name().into()).collect(),
+            NodeData::File(_f) => Vec::new(),
+        };
+        let data = NodeInfo {
+            children,
+            name: n.lock().name().into(),
+        };
+        Ok(data)
+    } else {
+        Err(FSError::NodeNotFound(p.into()))
+    }
 }
 
 lazy_static! {

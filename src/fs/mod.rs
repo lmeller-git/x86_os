@@ -1,9 +1,12 @@
 use alloc::{string::String, vec::Vec};
-use core::{fmt::Display, ops::Index};
+use core::{
+    fmt::Display,
+    ops::{Deref, Index},
+};
 use thiserror::Error;
 mod layout;
 mod operations;
-pub use operations::{init, insert_dir, insert_file, read, remove, write};
+pub use operations::{get_node_info, init, insert_dir, insert_file, read, remove, write, NodeInfo};
 
 pub type Result<T> = core::result::Result<T, FSError>;
 
@@ -49,16 +52,19 @@ impl<'a> Path<'a> {
             Some(self.elements[i])
         }
     }
+    pub fn try_concat(p1: &Path, p2: &Path) -> Self {
+        todo!()
+    }
 }
 
-impl<'a> Index<usize> for Path<'a> {
+impl Index<usize> for Path<'_> {
     type Output = str;
     fn index(&self, index: usize) -> &Self::Output {
         self.elements[index]
     }
 }
 
-impl<'a> Display for Path<'a> {
+impl Display for Path<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Ok(())
     }
@@ -75,7 +81,7 @@ impl Display for PathBuf {
     }
 }
 
-impl<'a> From<Path<'a>> for PathBuf {
+impl From<Path<'_>> for PathBuf {
     fn from(value: Path) -> Self {
         let p = value
             .elements
@@ -86,7 +92,7 @@ impl<'a> From<Path<'a>> for PathBuf {
     }
 }
 
-impl<'a> From<&Path<'a>> for PathBuf {
+impl From<&Path<'_>> for PathBuf {
     fn from(value: &Path) -> Self {
         let p = value
             .elements
@@ -95,5 +101,22 @@ impl<'a> From<&Path<'a>> for PathBuf {
             .map(|p| p.into())
             .collect::<Vec<String>>();
         Self { elements: p }
+    }
+}
+
+impl<'a> From<&'a PathBuf> for Path<'a> {
+    fn from(value: &'a PathBuf) -> Self {
+        Path {
+            elements: value.elements.iter().map(|i| i.as_str()).collect(),
+        }
+    }
+}
+
+impl Deref for PathBuf {
+    type Target = Path<'static>;
+
+    fn deref(&self) -> &Self::Target {
+        // safe, if only path holds ref tp elements (?)
+        unsafe { &*(self as *const PathBuf as *const Path) }
     }
 }

@@ -1,12 +1,16 @@
-use core::task::{Context, Poll, Waker};
+use core::{
+    fmt::Write,
+    task::{Context, Poll, Waker},
+};
 
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
 use builtins::{cat, cd, echo, ls, mkdir, touch};
 use crossbeam_queue::ArrayQueue;
 use futures_util::StreamExt;
 use parse::{Args, Cmd, Parser};
 use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
+use utils::ArgParser;
 
 use crate::{
     fs::{Path, PathBuf},
@@ -27,7 +31,15 @@ mod utils;
 #[derive(Default)]
 pub struct TODO {}
 
-pub trait OutStream: Sized {}
+pub trait OutStream: Sized + Write {
+    fn write(&self, data: &str) {}
+}
+
+impl Write for TODO {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        todo!()
+    }
+}
 
 impl OutStream for TODO {}
 pub async fn run_shell(scancodes: &mut ScancodeStream) {
@@ -72,7 +84,7 @@ impl<'a> Shell<'a> {
 
     async fn run(&mut self) {
         println!("Welcome to the shell");
-        // get input, parse input, spawn tasks based on input, stop tasks on interrupt (ctrl-c), print task output(task does it themselves)
+        // get input, parse input, spawn tasks based on input, stop tasks on interrupt (ctrl-c), print task output
         println!("{}", self.pos);
         print!("> ");
 
@@ -108,10 +120,11 @@ impl<'a> Shell<'a> {
     }
 
     fn execute(&mut self, cmd: &Cmd) {
-        let out = TODO::default();
         let current_pos: PathBuf = self.pos.clone().into();
+        // TODO: get out and err from cmd and pass to cmds
+        let out = TODO::default();
         match cmd.cmd.as_str() {
-            "cd" => self.cd(&cmd.args),
+            "cd" => self.cd(cmd.args.clone()),
             "ls" => self.spawn(Task::new(ls(current_pos, out, cmd.args.clone()))),
             "cat" => self.spawn(Task::new(cat(current_pos, out, cmd.args.clone()))),
             "mkdir" => self.spawn(Task::new(mkdir(current_pos, out, cmd.args.clone()))),
@@ -121,5 +134,11 @@ impl<'a> Shell<'a> {
         }
     }
 
-    fn cd(&mut self, args: &Args) {}
+    fn cd(&mut self, args: Args) {
+        let args: ArgParser<1> = ArgParser::try_from(args)
+            .unwrap()
+            .validate(Vec::new())
+            .unwrap();
+        self.pos = Path::try_concat(&self.pos, &Path::new(args.positionals[0]));
+    }
 }
