@@ -66,6 +66,15 @@ where
     }
 }
 
+impl<B> Write for Writer<B>
+where
+    B: WriterBackend + 'static,
+{
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        write!(self.backend.lock(), "{}", s)
+    }
+}
+
 pub fn _print(args: Arguments) {
     interrupts::without_interrupts(|| write!(vga::WRITER.lock(), "{}", args).unwrap())
 }

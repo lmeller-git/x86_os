@@ -66,6 +66,10 @@ impl Index<usize> for Path<'_> {
 
 impl Display for Path<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for e in &self.elements {
+            write!(f, "/{}", e)?;
+        }
+        writeln!(f)?;
         Ok(())
     }
 }

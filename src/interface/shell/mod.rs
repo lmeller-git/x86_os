@@ -85,7 +85,7 @@ impl<'a> Shell<'a> {
     async fn run(&mut self) {
         println!("Welcome to the shell");
         // get input, parse input, spawn tasks based on input, stop tasks on interrupt (ctrl-c), print task output
-        println!("{}", self.pos);
+        print!("{}", self.pos);
         print!("> ");
 
         let mut parser: Parser<VGAWriter> = Parser::new(&vga::WRITER);
@@ -93,7 +93,7 @@ impl<'a> Shell<'a> {
         while let Some(arg) = parser.next(self.instream).await {
             self.execute(arg);
             self.run_ready_tasks().await;
-            println!("{}", self.pos);
+            print!("{}", self.pos);
             print!("> ");
         }
     }

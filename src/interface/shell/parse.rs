@@ -1,4 +1,4 @@
-use core::fmt::Display;
+use core::fmt::{Display, Write};
 
 use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use futures_util::StreamExt;
@@ -7,7 +7,7 @@ use spin::Mutex;
 
 use crate::{
     fs::{Path, PathBuf},
-    io::{self, keyboard::ScancodeStream, Writer, WriterBackend},
+    io::{self, keyboard::ScancodeStream, vga, Writer, WriterBackend},
     print, println,
 };
 
@@ -26,13 +26,35 @@ pub struct Args {
 
 impl From<&str> for Args {
     fn from(value: &str) -> Self {
-        todo!()
+        if value.is_empty() {
+            Self {
+                positional: Vec::new(),
+                named: Vec::new(),
+            }
+        } else {
+            todo!()
+        }
     }
 }
 
 impl From<&[&str]> for Args {
     fn from(value: &[&str]) -> Self {
-        todo!()
+        let mut v_iter = value.iter();
+        let mut positional = Vec::new();
+        let mut named = Vec::new();
+        while let Some(&arg) = v_iter.next() {
+            if arg.starts_with("-") {
+                if let Some(&next) = v_iter.next() {
+                    named.push((arg, next).into());
+                }
+            } else if !named.is_empty() {
+                // TODO handle this error
+                named.push((arg, "").into());
+            } else {
+                positional.push(arg.into());
+            }
+        }
+        Self { positional, named }
     }
 }
 
@@ -112,6 +134,15 @@ pub struct NamedArg {
     val: String,
 }
 
+impl From<(&str, &str)> for NamedArg {
+    fn from(value: (&str, &str)) -> Self {
+        let name = value.0.into();
+        let val = value.1.into();
+        Self { name, val }
+    }
+}
+
+//TODO rework the entire cursor thing!! it is not needed here and can be handled by B
 pub struct Parser<B>
 where
     B: WriterBackend + 'static,
@@ -143,9 +174,14 @@ where
                             self.clear_one();
                         }
                         DecodedKey::Unicode(character) => {
-                            self.writer.write_byte_at(self.cursor_pos, character as u8);
-                            self.bump_cur();
+                            // self.writer.write_byte_at(self.cursor_pos, character as u8);
+
+                            write!(self.writer, "{}", character).unwrap();
+                            // self.bump_cur();
                             if character == '\n' {
+                                // self.cursor_pos = 2;
+                                self.bump_cur();
+                                self.bump_cur();
                                 self.hist.push_front(buffer.into());
                                 return self.hist.front();
                             }
