@@ -6,15 +6,16 @@ use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, Scancod
 use spin::Mutex;
 
 use crate::{
+    fs::{Path, PathBuf},
     io::{self, keyboard::ScancodeStream, Writer, WriterBackend},
-    print,
+    print, println,
 };
 
 pub struct Cmd {
     pub cmd: String,
     pub args: Args,
-    pub out: Option<String>,
-    pub err: Option<String>,
+    pub out: Option<Redirect>,
+    pub err: Option<Redirect>,
 }
 
 #[derive(Clone)]
@@ -23,16 +24,86 @@ pub struct Args {
     pub named: Vec<NamedArg>,
 }
 
-impl From<String> for Cmd {
-    fn from(value: String) -> Self {
+impl From<&str> for Args {
+    fn from(value: &str) -> Self {
         todo!()
     }
+}
+
+impl From<&[&str]> for Args {
+    fn from(value: &[&str]) -> Self {
+        todo!()
+    }
+}
+
+impl From<String> for Cmd {
+    fn from(value: String) -> Self {
+        if value.is_empty() {
+            return Self {
+                cmd: "".into(),
+                args: "".into(),
+                out: None,
+                err: None,
+            };
+        }
+        let unquoted = parse_quoted_str(&value);
+        let cmd = (*unquoted.first().expect("impossible")).into();
+        let mut out = None;
+        let mut err = None;
+        for (i, arg) in unquoted[1..].iter().enumerate() {
+            match *arg {
+                ">>" => {
+                    if let Some(&output) = unquoted.get(i + 1) {
+                        out = Some(Redirect::Append(output.into()))
+                    }
+                }
+                "1>>" => {
+                    if let Some(&output) = unquoted.get(i + 1) {
+                        out = Some(Redirect::Append(output.into()))
+                    }
+                }
+                "1>" => {
+                    if let Some(&output) = unquoted.get(i + 1) {
+                        out = Some(Redirect::Overwrite(output.into()))
+                    }
+                }
+                "2>>" => {
+                    if let Some(&output) = unquoted.get(i + 1) {
+                        err = Some(Redirect::Append(output.into()))
+                    }
+                }
+                "2>" => {
+                    if let Some(&output) = unquoted.get(i + 1) {
+                        err = Some(Redirect::Overwrite(output.into()))
+                    }
+                }
+                _ => {}
+            }
+        }
+        let args = unquoted[1..].into();
+
+        Self {
+            cmd,
+            args,
+            out,
+            err,
+        }
+    }
+}
+
+pub enum Redirect {
+    Append(String),
+    Overwrite(String),
 }
 
 impl Display for Cmd {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         todo!()
     }
+}
+
+fn parse_quoted_str(data: &str) -> Vec<&str> {
+    data.split(" ").collect()
 }
 
 #[derive(Clone)]
@@ -68,8 +139,12 @@ where
             if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
                 if let Some(key) = keyboard.process_keyevent(key_event) {
                     match key {
+                        DecodedKey::Unicode('\u{08}') => {
+                            self.clear_one();
+                        }
                         DecodedKey::Unicode(character) => {
                             self.writer.write_byte_at(self.cursor_pos, character as u8);
+                            self.bump_cur();
                             if character == '\n' {
                                 self.hist.push_front(buffer.into());
                                 return self.hist.front();
@@ -128,7 +203,7 @@ where
         Self {
             hist: VecDeque::new(),
             hist_position: 0,
-            cursor_pos: 0,
+            cursor_pos: 2,
             writer: Writer::new(backend),
         }
     }
@@ -138,6 +213,7 @@ where
     }
     fn clear_one(&mut self) {
         self.writer.clear_one();
+        self.debumb_cur();
     }
     fn bump_cur(&mut self) {
         self.writer.bumb_cur(&mut self.cursor_pos);

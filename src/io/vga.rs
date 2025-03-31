@@ -215,8 +215,8 @@ impl VGAWriter {
                 self.write_char_unchecked(character, row + 1, col);
             }
         }
-        self.clear_row(0);
-        self.column = 0;
+        // self.clear_row(0);
+        self.column = BUFFER_WIDTH - 1;
     }
 
     fn clear_row(&mut self, row: usize) {
@@ -256,7 +256,20 @@ impl VGAWriter {
             .get_row_mut(row)
             .map(|row| ScreenRow { chars: row })
     }
-
+    pub fn set_prev_pos(&mut self) {
+        if self.column > 0 {
+            self.column -= 1;
+        } else {
+            self.shift_down();
+        }
+    }
+    pub fn set_next_pos(&mut self) {
+        if self.column < BUFFER_WIDTH - 1 {
+            self.column += 1;
+        } else {
+            self.shift_up();
+        }
+    }
     pub fn current_pos(&self) -> (usize, usize) {
         (self.row, self.column)
     }
@@ -274,7 +287,38 @@ impl fmt::Write for VGAWriter {
     }
 }
 
-impl WriterBackend for VGAWriter {}
+impl WriterBackend for VGAWriter {
+    fn write_byte_at(&mut self, pos: usize, byte: u8) {
+        self.write_byte_unchecked(byte, self.row, pos);
+    }
+    fn bumb_cur(&mut self, cur: &mut usize) {
+        if *cur < BUFFER_WIDTH - 1 {
+            *cur += 1;
+            self.set_next_pos();
+        } else {
+            self.shift_up();
+            *cur = 0;
+        }
+    }
+
+    fn debumb_cur(&mut self, cur: &mut usize) {
+        if *cur > 0 {
+            *cur -= 1;
+            self.set_prev_pos();
+        } else {
+            self.shift_down();
+            *cur = BUFFER_WIDTH - 1;
+        }
+    }
+
+    fn clear_one(&mut self) {
+        if let Some(c) = self.select_prev() {
+            c.update(|c| {
+                c.fg(Color::default()).bg(Color::default()).char(b' ');
+            });
+        }
+    }
+}
 
 lazy_static! {
     pub static ref WRITER: Mutex<VGAWriter> = Mutex::new(VGAWriter {

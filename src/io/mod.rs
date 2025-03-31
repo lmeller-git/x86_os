@@ -21,8 +21,14 @@ pub trait WriterBackend: core::fmt::Write {
     fn select_current(&mut self) {}
     fn select_prev(&mut self) {}
     fn select_next(&mut self) {}
-    fn write_byte_at(&mut self, pos: usize) {}
+    fn write_byte_at(&mut self, pos: usize, byte: u8) {}
     fn delete_byte_at(&mut self, pos: usize) {}
+    fn bumb_cur(&mut self, cur: &mut usize) {
+        *cur += 1;
+    }
+    fn debumb_cur(&mut self, cur: &mut usize) {
+        *cur -= 1;
+    }
 }
 
 pub struct Writer<B: WriterBackend + 'static> {
@@ -39,17 +45,25 @@ where
     pub fn newline(&mut self) {}
     pub fn write_byte(&mut self, _byte: u8) {}
     pub fn write_bytes(&mut self, _bytes: &[u8]) {}
-    pub fn clear_one(&mut self) {}
+    pub fn clear_one(&mut self) {
+        self.backend.lock().clear_one();
+    }
     pub fn clear_row(&mut self) {}
     pub fn select_row(&mut self, row: usize) {}
     pub fn select_current_row(&mut self) {}
     pub fn select_current(&mut self) {}
     pub fn select_prev(&mut self) {}
     pub fn select_next(&mut self) {}
-    pub fn write_byte_at(&mut self, pos: usize, byte: u8) {}
+    pub fn write_byte_at(&mut self, pos: usize, byte: u8) {
+        self.backend.lock().write_byte_at(pos, byte)
+    }
     pub fn delete_byte_at(&mut self, pos: usize) {}
-    pub fn bumb_cur(&mut self, cur: &mut usize) {}
-    pub fn debumb_cur(&mut self, cur: &mut usize) {}
+    pub fn bumb_cur(&mut self, cur: &mut usize) {
+        self.backend.lock().bumb_cur(cur);
+    }
+    pub fn debumb_cur(&mut self, cur: &mut usize) {
+        self.backend.lock().debumb_cur(cur);
+    }
 }
 
 pub fn _print(args: Arguments) {
