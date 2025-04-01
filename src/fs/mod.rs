@@ -52,8 +52,15 @@ impl<'a> Path<'a> {
             Some(self.elements[i])
         }
     }
-    pub fn try_concat(p1: &Path, p2: &Path) -> Self {
-        todo!()
+    pub fn try_concat(p1: &'a Path, p2: &'a Path) -> Self {
+        // TODO proper relative part resolution
+        // for now assuming, that p2 starts in . as ./...
+        let mut p = p1.clone();
+        p.extend(&p2.elements[..]);
+        p
+    }
+    pub fn extend(&mut self, elements: &[&'a str]) {
+        self.elements.extend_from_slice(elements);
     }
 }
 
@@ -74,9 +81,22 @@ impl Display for Path<'_> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PathBuf {
     elements: Vec<String>,
+}
+
+impl PathBuf {
+    pub fn new(p: String) -> Self {
+        let s = p.split('/').map(|s| s.into()).collect::<Vec<String>>();
+        Self { elements: s }
+    }
+
+    pub fn as_path(&self) -> Path {
+        Path {
+            elements: self.elements.iter().map(|s| s.as_str()).collect(),
+        }
+    }
 }
 
 impl Display for PathBuf {
@@ -113,14 +133,5 @@ impl<'a> From<&'a PathBuf> for Path<'a> {
         Path {
             elements: value.elements.iter().map(|i| i.as_str()).collect(),
         }
-    }
-}
-
-impl Deref for PathBuf {
-    type Target = Path<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        // safe, if only path holds ref tp elements (?)
-        unsafe { &*(self as *const PathBuf as *const Path) }
     }
 }

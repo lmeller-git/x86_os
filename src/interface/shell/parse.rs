@@ -130,8 +130,8 @@ fn parse_quoted_str(data: &str) -> Vec<&str> {
 
 #[derive(Clone)]
 pub struct NamedArg {
-    name: String,
-    val: String,
+    pub name: String,
+    pub val: String,
 }
 
 impl From<(&str, &str)> for NamedArg {
@@ -171,7 +171,7 @@ where
                 if let Some(key) = keyboard.process_keyevent(key_event) {
                     match key {
                         DecodedKey::Unicode('\u{08}') => {
-                            self.clear_one();
+                            self.clear_one(&mut buffer);
                         }
                         DecodedKey::Unicode(character) => {
                             // self.writer.write_byte_at(self.cursor_pos, character as u8);
@@ -180,8 +180,8 @@ where
                             // self.bump_cur();
                             if character == '\n' {
                                 // self.cursor_pos = 2;
-                                self.bump_cur();
-                                self.bump_cur();
+                                // self.bump_cur();
+                                // self.bump_cur();
                                 self.hist.push_front(buffer.into());
                                 return self.hist.front();
                             }
@@ -207,7 +207,7 @@ where
                                 self.bump_cur();
                             }
                             KeyCode::Backspace => {
-                                self.clear_one();
+                                // self.clear_one();
                             }
                             KeyCode::Tab => {}
                             _ => {}
@@ -247,7 +247,10 @@ where
     fn clear_line(&mut self) {
         self.writer.clear_row()
     }
-    fn clear_one(&mut self) {
+    fn clear_one(&mut self, buf: &mut String) {
+        if !buf.is_empty() {
+            buf.pop();
+        }
         self.writer.clear_one();
         self.debumb_cur();
     }

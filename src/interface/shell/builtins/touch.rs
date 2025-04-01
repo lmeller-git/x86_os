@@ -7,6 +7,7 @@ use crate::{
         utils::{ArgParseError, ArgParser},
         OutStream,
     },
+    println,
 };
 
 pub async fn touch<O: OutStream>(p: PathBuf, ostream: O, args: Args) {
@@ -14,6 +15,10 @@ pub async fn touch<O: OutStream>(p: PathBuf, ostream: O, args: Args) {
         .unwrap()
         .validate(Vec::new())
         .unwrap();
-    let p = Path::try_concat(&p, &Path::new(args.positionals[0]));
+    let p2 = Path::new(&args.positionals[0]);
+    let p3 = p.as_path();
+    // println!("p2, p3: {}  {}", p2, p3);
+    let p = Path::try_concat(&p3, &p2);
+    // println!("p3: {}", p);
     fs::insert_file(&p).unwrap();
 }

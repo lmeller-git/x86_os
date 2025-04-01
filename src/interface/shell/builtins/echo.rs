@@ -5,7 +5,7 @@ use crate::{
     interface::shell::{parse::Args, utils::ArgParser, OutStream},
 };
 
-pub async fn echo<O: OutStream>(ostream: O, args: Args) {
+pub async fn echo<O: OutStream>(mut ostream: O, args: Args) {
     if !args.named.is_empty() {
         todo!()
     }

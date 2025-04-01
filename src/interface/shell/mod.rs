@@ -4,7 +4,7 @@ use core::{
 };
 
 use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
-use builtins::{cat, cd, echo, ls, mkdir, touch};
+use builtins::{cat, echo, exit, ls, mkdir, touch};
 use crossbeam_queue::ArrayQueue;
 use futures_util::StreamExt;
 use parse::{Args, Cmd, Parser};
@@ -14,10 +14,10 @@ use utils::ArgParser;
 
 use crate::{
     fs::{Path, PathBuf},
-    interface::exit,
     io::{
         keyboard::ScancodeStream,
         vga::{self, VGAWriter},
+        Writer, WriterBackend,
     },
     print, println,
     task::{executor::TaskWaker, Task, TaskId},
@@ -32,7 +32,9 @@ mod utils;
 pub struct TODO {}
 
 pub trait OutStream: Sized + Write {
-    fn write(&self, data: &str) {}
+    fn write(&mut self, data: &str) {
+        self.write_str(data);
+    }
 }
 
 impl Write for TODO {
@@ -42,6 +44,9 @@ impl Write for TODO {
 }
 
 impl OutStream for TODO {}
+
+impl<B> OutStream for Writer<B> where B: WriterBackend {}
+
 pub async fn run_shell(scancodes: &mut ScancodeStream) {
     let mut shell = Shell::new(scancodes);
     shell.run().await
@@ -53,7 +58,7 @@ struct Shell<'a> {
     task_queue: Arc<ArrayQueue<TaskId>>,
     waker_cache: BTreeMap<TaskId, Waker>,
     instream: &'a mut ScancodeStream,
-    pos: Path<'a>,
+    pos: PathBuf,
 }
 
 impl<'a> Shell<'a> {
@@ -64,7 +69,7 @@ impl<'a> Shell<'a> {
             task_queue: Arc::new(ArrayQueue::new(10)),
             waker_cache: BTreeMap::new(),
             instream,
-            pos: Path::new(""),
+            pos: PathBuf::new("".into()),
         }
     }
 
@@ -120,9 +125,12 @@ impl<'a> Shell<'a> {
     }
 
     fn execute(&mut self, cmd: &Cmd) {
-        let current_pos: PathBuf = self.pos.clone().into();
+        // println!("fine0");
+        let current_pos: PathBuf = self.pos.clone();
+        // println!("fine01");
         // TODO: get out and err from cmd and pass to cmds
         let out = TODO::default();
+        let out = Writer::new(&vga::WRITER);
         match cmd.cmd.as_str() {
             "cd" => self.cd(cmd.args.clone()),
             "ls" => self.spawn(Task::new(ls(current_pos, out, cmd.args.clone()))),
@@ -130,6 +138,7 @@ impl<'a> Shell<'a> {
             "mkdir" => self.spawn(Task::new(mkdir(current_pos, out, cmd.args.clone()))),
             "touch" => self.spawn(Task::new(touch(current_pos, out, cmd.args.clone()))),
             "echo" => self.spawn(Task::new(echo(out, cmd.args.clone()))),
+            "exit" => self.spawn(Task::new(exit(out, cmd.args.clone()))),
             _ => {}
         }
     }
@@ -139,6 +148,11 @@ impl<'a> Shell<'a> {
             .unwrap()
             .validate(Vec::new())
             .unwrap();
-        self.pos = Path::try_concat(&self.pos, &Path::new(args.positionals[0]));
+        let p2 = Path::new(&args.positionals[0]);
+        self.pos = if args.positionals[0].starts_with('/') {
+            p2.into()
+        } else {
+            Path::try_concat(&self.pos.as_path(), &p2).into()
+        }
     }
 }

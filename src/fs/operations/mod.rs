@@ -4,7 +4,7 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
-use crate::fs::layout::FS;
+use crate::{fs::layout::FS, println};
 
 use super::{
     layout::{Node, NodeData},
@@ -24,6 +24,7 @@ pub fn remove(p: &Path) -> Result<()> {
 }
 
 pub fn insert_file(p: &Path) -> Result<()> {
+    // println!("p: {}", p);
     FILESYSTEM.lock().insert(p, NodeData::file())
 }
 
