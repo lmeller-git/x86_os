@@ -4,7 +4,7 @@ use core::{
 };
 
 use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
-use builtins::{cat, echo, exit, ls, mkdir, touch};
+use builtins::{cat, echo, exit, ls, mkdir, rm, touch};
 use crossbeam_queue::ArrayQueue;
 use futures_util::StreamExt;
 use parse::{Args, Cmd, Parser};
@@ -139,6 +139,7 @@ impl<'a> Shell<'a> {
             "touch" => self.spawn(Task::new(touch(current_pos, out, cmd.args.clone()))),
             "echo" => self.spawn(Task::new(echo(out, cmd.args.clone()))),
             "exit" => self.spawn(Task::new(exit(out, cmd.args.clone()))),
+            "rm" => self.spawn(Task::new(rm(current_pos, out, cmd.args.clone()))),
             _ => {}
         }
     }
