@@ -1,11 +1,11 @@
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     fs::{self, Path, PathBuf},
     interface::shell::{parse::Args, utils::ArgParser, OutStream},
 };
 
-pub async fn mkdir<O: OutStream>(p: PathBuf, ostream: O, args: Args) {
+pub async fn mkdir(p: PathBuf, ostream: Box<dyn OutStream>, args: Args) {
     let args: ArgParser<1> = ArgParser::try_from(args)
         .unwrap()
         .validate(Vec::new())

@@ -3,17 +3,23 @@ use core::{
     task::{Context, Poll, Waker},
 };
 
-use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    string::String,
+    sync::Arc,
+    vec::{self, Vec},
+};
 use builtins::{cat, echo, exit, ls, mkdir, rm, touch};
 use crossbeam_queue::ArrayQueue;
 use futures_util::StreamExt;
-use parse::{Args, Cmd, Parser};
+use parse::{Args, Cmd, Parser, Redirect};
 use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
 use utils::ArgParser;
 
 use crate::{
-    fs::{Path, PathBuf},
+    fs::{self, Path, PathBuf},
     io::{
         keyboard::ScancodeStream,
         vga::{self, VGAWriter},
@@ -28,12 +34,30 @@ mod parse;
 mod repr;
 mod utils;
 
+struct OutWrapper<B>
+where
+    B: OutStream,
+{
+    inner: B,
+}
+
+impl<B> OutStream for OutWrapper<B> where B: OutStream {}
+
+impl<B> Write for OutWrapper<B>
+where
+    B: OutStream,
+{
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        self.inner.write_str(s)
+    }
+}
+
 #[derive(Default)]
 pub struct TODO {}
 
-pub trait OutStream: Sized + Write {
+pub trait OutStream: Write {
     fn write(&mut self, data: &str) {
-        self.write_str(data);
+        _ = self.write_str(data);
     }
 }
 
@@ -44,6 +68,43 @@ impl Write for TODO {
 }
 
 impl OutStream for TODO {}
+
+impl Write for Redirect {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        match self {
+            Self::Overwrite(p) => {
+                let p = Path::new(p);
+                _ = use_or_create(&p);
+                fs::write(&p, s.bytes().collect()).unwrap();
+            }
+            Self::Append(p) => {
+                let p = Path::new(p);
+                _ = use_or_create(&p);
+                let content = fs::read(&p).unwrap_or_default();
+                let mut s: Vec<u8> = s.bytes().collect();
+                s.splice(0..0, content);
+                fs::write(&p, s).unwrap();
+            }
+        }
+        Ok(())
+    }
+}
+
+fn use_or_create(p: &Path) -> Result<(), fs::FSError> {
+    match fs::get_node_info(p) {
+        Err(fs::FSError::NodeNotFound(_)) => fs::insert_file(p),
+        Err(e) => Err(e),
+        Ok(info) => {
+            if info.is_dir {
+                fs::insert_file(p)
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+impl OutStream for Redirect {}
 
 impl<B> OutStream for Writer<B> where B: WriterBackend {}
 
@@ -129,8 +190,11 @@ impl<'a> Shell<'a> {
         let current_pos: PathBuf = self.pos.clone();
         // println!("fine01");
         // TODO: get out and err from cmd and pass to cmds
-        let out = TODO::default();
-        let out = Writer::new(&vga::WRITER);
+        let out: Box<dyn OutStream> = if let Some(w) = cmd.out.clone() {
+            Box::new(w)
+        } else {
+            Box::new(Writer::new(&vga::WRITER))
+        };
         match cmd.cmd.as_str() {
             "cd" => self.cd(cmd.args.clone()),
             "ls" => self.spawn(Task::new(ls(current_pos, out, cmd.args.clone()))),

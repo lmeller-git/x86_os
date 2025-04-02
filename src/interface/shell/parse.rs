@@ -72,37 +72,43 @@ impl From<String> for Cmd {
         let cmd = (*unquoted.first().expect("impossible")).into();
         let mut out = None;
         let mut err = None;
+        let mut j = unquoted.len();
         for (i, arg) in unquoted[1..].iter().enumerate() {
             match *arg {
                 ">>" => {
-                    if let Some(&output) = unquoted.get(i + 1) {
+                    if let Some(&output) = unquoted.get(i + 2) {
                         out = Some(Redirect::Append(output.into()))
                     }
+                    j = j.min(i + 1);
                 }
                 "1>>" => {
-                    if let Some(&output) = unquoted.get(i + 1) {
+                    if let Some(&output) = unquoted.get(i + 2) {
                         out = Some(Redirect::Append(output.into()))
                     }
+                    j = j.min(i + 1);
                 }
                 "1>" => {
-                    if let Some(&output) = unquoted.get(i + 1) {
+                    if let Some(&output) = unquoted.get(i + 2) {
                         out = Some(Redirect::Overwrite(output.into()))
                     }
+                    j = j.min(i + 1);
                 }
                 "2>>" => {
-                    if let Some(&output) = unquoted.get(i + 1) {
+                    if let Some(&output) = unquoted.get(i + 2) {
                         err = Some(Redirect::Append(output.into()))
                     }
+                    j = j.min(i + 1);
                 }
                 "2>" => {
-                    if let Some(&output) = unquoted.get(i + 1) {
+                    if let Some(&output) = unquoted.get(i + 2) {
                         err = Some(Redirect::Overwrite(output.into()))
                     }
+                    j = j.min(i + 1);
                 }
                 _ => {}
             }
         }
-        let args = unquoted[1..].into();
+        let args = unquoted[1..j].into();
 
         Self {
             cmd,
@@ -113,6 +119,7 @@ impl From<String> for Cmd {
     }
 }
 
+#[derive(Clone)]
 pub enum Redirect {
     Append(String),
     Overwrite(String),

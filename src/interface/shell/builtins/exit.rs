@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use crate::{
     exit_qemu,
     fs::Path,
@@ -5,6 +7,6 @@ use crate::{
     QemuExitCode,
 };
 
-pub async fn exit<O: OutStream>(ostream: O, args: Args) {
+pub async fn exit(ostream: Box<dyn OutStream>, args: Args) {
     exit_qemu(QemuExitCode::Success);
 }

@@ -35,17 +35,22 @@ pub fn insert_dir(p: &Path) -> Result<()> {
 pub struct NodeInfo {
     pub children: Vec<String>,
     pub name: String,
+    pub is_dir: bool,
 }
 
 pub fn get_node_info(p: &Path) -> Result<NodeInfo> {
     if let Some(n) = FILESYSTEM.lock().get(p) {
-        let children = match &n.lock().data {
-            NodeData::Dir(d) => d.children.iter().map(|c| c.lock().name().into()).collect(),
-            NodeData::File(_f) => Vec::new(),
+        let (children, is_dir) = match &n.lock().data {
+            NodeData::Dir(d) => (
+                d.children.iter().map(|c| c.lock().name().into()).collect(),
+                true,
+            ),
+            NodeData::File(_f) => (Vec::new(), false),
         };
         let data = NodeInfo {
             children,
             name: n.lock().name().into(),
+            is_dir,
         };
         Ok(data)
     } else {

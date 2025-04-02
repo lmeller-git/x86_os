@@ -1,11 +1,11 @@
-use alloc::vec;
+use alloc::{boxed::Box, vec};
 
 use crate::{
     fs::{self, Path, PathBuf},
     interface::shell::{parse::Args, utils::ArgParser, OutStream},
 };
 
-pub async fn rm<O: OutStream>(p: PathBuf, mut ostream: O, args: Args) {
+pub async fn rm(p: PathBuf, mut ostream: Box<dyn OutStream>, args: Args) {
     let args: ArgParser<1> = ArgParser::try_from(args)
         .unwrap()
         .validate(vec!["-r", "-f"])

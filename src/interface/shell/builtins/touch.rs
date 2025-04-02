@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     fs::{self, Path, PathBuf},
@@ -10,7 +10,7 @@ use crate::{
     println,
 };
 
-pub async fn touch<O: OutStream>(p: PathBuf, ostream: O, args: Args) {
+pub async fn touch(p: PathBuf, ostream: Box<dyn OutStream>, args: Args) {
     let args: ArgParser<1> = ArgParser::try_from(args)
         .unwrap()
         .validate(Vec::new())
