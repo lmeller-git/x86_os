@@ -27,7 +27,10 @@ pub struct Path<'a> {
 
 impl<'a> Path<'a> {
     pub fn new(p: &'a str) -> Self {
-        let s = p.split('/').collect::<Vec<&'a str>>();
+        let s = p
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&'a str>>();
         Self { elements: s }
     }
 
@@ -62,6 +65,18 @@ impl<'a> Path<'a> {
     pub fn extend(&mut self, elements: &[&'a str]) {
         self.elements.extend_from_slice(elements);
     }
+    pub fn canonicalize(&self) -> Self {
+        // TODO
+        let mut s = Self::new("");
+        for element in &self.elements {
+            if !element.contains('.') {
+                s.extend(&[element]);
+            } else if *element == ".." {
+                (s, _) = s.split_last();
+            }
+        }
+        s
+    }
 }
 
 impl Index<usize> for Path<'_> {
@@ -73,6 +88,9 @@ impl Index<usize> for Path<'_> {
 
 impl Display for Path<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if self.elements.is_empty() {
+            write!(f, "/")?;
+        }
         for e in &self.elements {
             write!(f, "/{}", e)?;
         }
@@ -88,7 +106,11 @@ pub struct PathBuf {
 
 impl PathBuf {
     pub fn new(p: String) -> Self {
-        let s = p.split('/').map(|s| s.into()).collect::<Vec<String>>();
+        let s = p
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.into())
+            .collect::<Vec<String>>();
         Self { elements: s }
     }
 
@@ -97,10 +119,20 @@ impl PathBuf {
             elements: self.elements.iter().map(|s| s.as_str()).collect(),
         }
     }
+
+    pub fn canonicalize(&mut self) {
+        // TODO
+    }
 }
 
 impl Display for PathBuf {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if self.elements.is_empty() {
+            write!(f, "/")?;
+        }
+        for e in &self.elements {
+            write!(f, "/{}", e)?;
+        }
         Ok(())
     }
 }

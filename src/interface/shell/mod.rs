@@ -151,7 +151,7 @@ impl<'a> Shell<'a> {
     async fn run(&mut self) {
         println!("Welcome to the shell");
         // get input, parse input, spawn tasks based on input, stop tasks on interrupt (ctrl-c), print task output
-        print!("{}", self.pos);
+        println!("{}", self.pos);
         print!("> ");
 
         let mut parser: Parser<VGAWriter> = Parser::new(&vga::WRITER);
@@ -159,7 +159,8 @@ impl<'a> Shell<'a> {
         while let Some(arg) = parser.next(self.instream).await {
             self.execute(arg);
             self.run_ready_tasks().await;
-            print!("{}", self.pos);
+            println!();
+            println!("{}", self.pos);
             print!("> ");
         }
     }
@@ -204,6 +205,7 @@ impl<'a> Shell<'a> {
             "echo" => self.spawn(Task::new(echo(out, cmd.args.clone()))),
             "exit" => self.spawn(Task::new(exit(out, cmd.args.clone()))),
             "rm" => self.spawn(Task::new(rm(current_pos, out, cmd.args.clone()))),
+            "pwd" => self.pwd(cmd.args.clone()),
             _ => {}
         }
     }
@@ -215,9 +217,36 @@ impl<'a> Shell<'a> {
             .unwrap();
         let p2 = Path::new(&args.positionals[0]);
         self.pos = if args.positionals[0].starts_with('/') {
-            p2.into()
+            if !is_valid_dir(&p2) {
+                println!("cannot move into {}", p2);
+                self.pos.clone()
+            } else {
+                p2.canonicalize().into()
+            }
         } else {
-            Path::try_concat(&self.pos.as_path(), &p2).into()
+            let p = self.pos.as_path();
+            let p = Path::try_concat(&p, &p2);
+            if !is_valid_dir(&p) {
+                println!("cannot move into {}", p);
+                self.pos.clone()
+            } else {
+                p.canonicalize().into()
+            }
         }
+    }
+
+    fn pwd(&self, args: Args) {
+        let _args: ArgParser<0> = ArgParser::try_from(args)
+            .unwrap()
+            .validate(Vec::new())
+            .unwrap();
+        println!("{}", self.pos);
+    }
+}
+
+fn is_valid_dir(p: &Path) -> bool {
+    match fs::get_node_info(p) {
+        Ok(n) => n.is_dir,
+        Err(_e) => false,
     }
 }

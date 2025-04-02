@@ -20,5 +20,6 @@ pub async fn touch(p: PathBuf, ostream: Box<dyn OutStream>, args: Args) {
     // println!("p2, p3: {}  {}", p2, p3);
     let p = Path::try_concat(&p3, &p2);
     // println!("p3: {}", p);
+    // println!("p: {}", p);
     fs::insert_file(&p).unwrap();
 }

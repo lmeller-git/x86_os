@@ -12,24 +12,26 @@ use super::{
 };
 
 pub fn read(p: &Path) -> Result<Vec<u8>> {
-    FILESYSTEM.lock().read(p)
+    FILESYSTEM.lock().read(&p.canonicalize())
 }
 
 pub fn write(p: &Path, content: Vec<u8>) -> Result<()> {
-    FILESYSTEM.lock().write(p, content)
+    FILESYSTEM.lock().write(&p.canonicalize(), content)
 }
 
 pub fn remove(p: &Path) -> Result<()> {
-    FILESYSTEM.lock().delete(p)
+    FILESYSTEM.lock().delete(&p.canonicalize())
 }
 
 pub fn insert_file(p: &Path) -> Result<()> {
     // println!("p: {}", p);
-    FILESYSTEM.lock().insert(p, NodeData::file())
+    FILESYSTEM
+        .lock()
+        .insert(&p.canonicalize(), NodeData::file())
 }
 
 pub fn insert_dir(p: &Path) -> Result<()> {
-    FILESYSTEM.lock().insert(p, NodeData::dir())
+    FILESYSTEM.lock().insert(&p.canonicalize(), NodeData::dir())
 }
 
 pub struct NodeInfo {
@@ -39,7 +41,7 @@ pub struct NodeInfo {
 }
 
 pub fn get_node_info(p: &Path) -> Result<NodeInfo> {
-    if let Some(n) = FILESYSTEM.lock().get(p) {
+    if let Some(n) = FILESYSTEM.lock().get(&p.canonicalize()) {
         let (children, is_dir) = match &n.lock().data {
             NodeData::Dir(d) => (
                 d.children.iter().map(|c| c.lock().name().into()).collect(),

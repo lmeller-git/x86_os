@@ -11,6 +11,14 @@ pub async fn ls(p: PathBuf, mut ostream: Box<dyn OutStream>, args: Args) {
     // println!("fine1");
     // let args = args.validate(Vec::new()).unwrap();
     // println!("fine");
+    let p = if let Some(p2) = args.positional.first() {
+        let p2 = Path::new(p2);
+        let p3 = p.as_path();
+        let p = Path::try_concat(&p3, &p2);
+        p.into()
+    } else {
+        p
+    };
     let res = fs::get_node_info(&p.as_path()).unwrap();
 
     // println!("fine2");
