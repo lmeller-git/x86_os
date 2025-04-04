@@ -1,14 +1,13 @@
 use core::fmt::{Display, Write};
 
-use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
+use alloc::{collections::VecDeque, string::String, vec::Vec};
 use futures_util::StreamExt;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use spin::Mutex;
 
 use crate::{
-    fs::{Path, PathBuf},
-    io::{self, keyboard::ScancodeStream, vga, Writer, WriterBackend},
-    print, println,
+    io::{keyboard::ScancodeStream, Writer, WriterBackend},
+    print,
 };
 
 pub struct Cmd {
@@ -126,7 +125,7 @@ pub enum Redirect {
 }
 
 impl Display for Cmd {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         todo!()
     }
 }
@@ -181,14 +180,8 @@ where
                             self.clear_one(&mut buffer);
                         }
                         DecodedKey::Unicode(character) => {
-                            // self.writer.write_byte_at(self.cursor_pos, character as u8);
-
                             write!(self.writer, "{}", character).unwrap();
-                            // self.bump_cur();
                             if character == '\n' {
-                                // self.cursor_pos = 2;
-                                // self.bump_cur();
-                                // self.bump_cur();
                                 self.hist.push_front(buffer.into());
                                 return self.hist.front();
                             }

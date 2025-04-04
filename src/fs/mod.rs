@@ -1,12 +1,9 @@
 use alloc::{string::String, vec::Vec};
-use core::{
-    fmt::Display,
-    ops::{Deref, Index},
-};
+use core::{fmt::Display, ops::Index};
 use thiserror::Error;
 mod layout;
 mod operations;
-pub use operations::{get_node_info, init, insert_dir, insert_file, read, remove, write, NodeInfo};
+pub use operations::{get_node_info, init, insert_dir, insert_file, read, remove, write};
 
 pub type Result<T> = core::result::Result<T, FSError>;
 

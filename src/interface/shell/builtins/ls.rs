@@ -1,16 +1,16 @@
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 
 use crate::{
     fs::{self, Path, PathBuf},
-    interface::shell::{parse::Args, utils::ArgParser, OutStream},
-    println,
+    interface::shell::{parse::Args, OutStream},
 };
 
-pub async fn ls(p: PathBuf, mut ostream: Box<dyn OutStream>, args: Args) {
-    // let args: ArgParser<0> = ArgParser::try_from(args).unwrap();
-    // println!("fine1");
-    // let args = args.validate(Vec::new()).unwrap();
-    // println!("fine");
+pub async fn ls(
+    p: PathBuf,
+    mut ostream: Box<dyn OutStream>,
+    mut errstream: Box<dyn OutStream>,
+    args: Args,
+) {
     let p = if let Some(p2) = args.positional.first() {
         let p2 = Path::new(p2);
         let p3 = p.as_path();
@@ -19,9 +19,14 @@ pub async fn ls(p: PathBuf, mut ostream: Box<dyn OutStream>, args: Args) {
     } else {
         p
     };
-    let res = fs::get_node_info(&p.as_path()).unwrap();
+    let res = match fs::get_node_info(&p.as_path()) {
+        Ok(v) => v,
+        Err(e) => {
+            _ = writeln!(errstream, "ls failed: {}", e);
+            return;
+        }
+    };
 
-    // println!("fine2");
     for c in &res.children {
         ostream.write(c);
         ostream.write(" ");

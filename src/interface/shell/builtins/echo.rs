@@ -1,13 +1,10 @@
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 
-use crate::{
-    fs::Path,
-    interface::shell::{parse::Args, utils::ArgParser, OutStream},
-};
+use crate::interface::shell::{parse::Args, OutStream};
 
-pub async fn echo(mut ostream: Box<dyn OutStream>, args: Args) {
+pub async fn echo(mut ostream: Box<dyn OutStream>, mut _errstream: Box<dyn OutStream>, args: Args) {
     if !args.named.is_empty() {
-        todo!()
+        ostream.write("");
     }
     ostream.write(&args.positional.join(" "));
 }

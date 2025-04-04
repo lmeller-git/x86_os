@@ -1,15 +1,12 @@
 //TODO make async
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{string::String, vec::Vec};
 use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
-use crate::{fs::layout::FS, println};
+use crate::fs::layout::FS;
 
-use super::{
-    layout::{Node, NodeData},
-    FSError, Path, Result,
-};
+use super::{layout::NodeData, FSError, Path, Result};
 
 pub fn read(p: &Path) -> Result<Vec<u8>> {
     FILESYSTEM.lock().read(&p.canonicalize())

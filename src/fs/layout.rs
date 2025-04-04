@@ -1,8 +1,6 @@
 use alloc::{string::String, sync::Arc, vec::Vec};
 use spin::mutex::Mutex;
 
-use crate::println;
-
 use super::{FSError, Path, Result};
 
 pub(super) struct Node {

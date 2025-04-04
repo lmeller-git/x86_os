@@ -3,19 +3,10 @@ use core::{
     task::{Context, Poll, Waker},
 };
 
-use alloc::{
-    boxed::Box,
-    collections::BTreeMap,
-    string::String,
-    sync::Arc,
-    vec::{self, Vec},
-};
-use builtins::{cat, echo, exit, ls, mkdir, rm, touch};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc, vec::Vec};
+use builtins::{cat, echo, exit, ls, mkdir, rm, touch, validate_checked};
 use crossbeam_queue::ArrayQueue;
-use futures_util::StreamExt;
 use parse::{Args, Cmd, Parser, Redirect};
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-use spin::Mutex;
 use utils::ArgParser;
 
 use crate::{
@@ -34,40 +25,11 @@ mod parse;
 mod repr;
 mod utils;
 
-struct OutWrapper<B>
-where
-    B: OutStream,
-{
-    inner: B,
-}
-
-impl<B> OutStream for OutWrapper<B> where B: OutStream {}
-
-impl<B> Write for OutWrapper<B>
-where
-    B: OutStream,
-{
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.inner.write_str(s)
-    }
-}
-
-#[derive(Default)]
-pub struct TODO {}
-
 pub trait OutStream: Write {
     fn write(&mut self, data: &str) {
         _ = self.write_str(data);
     }
 }
-
-impl Write for TODO {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        todo!()
-    }
-}
-
-impl OutStream for TODO {}
 
 impl Write for Redirect {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
@@ -113,6 +75,7 @@ pub async fn run_shell(scancodes: &mut ScancodeStream) {
     shell.run().await
 }
 
+#[allow(dead_code)]
 struct Shell<'a> {
     fg: Option<Task>,
     bg: BTreeMap<TaskId, Task>,
@@ -122,6 +85,7 @@ struct Shell<'a> {
     pos: PathBuf,
 }
 
+#[allow(dead_code)]
 impl<'a> Shell<'a> {
     fn new(instream: &'a mut ScancodeStream) -> Self {
         Shell {
@@ -187,38 +151,48 @@ impl<'a> Shell<'a> {
     }
 
     fn execute(&mut self, cmd: &Cmd) {
-        // println!("fine0");
         let current_pos: PathBuf = self.pos.clone();
-        // println!("fine01");
-        // TODO: get out and err from cmd and pass to cmds
         let out: Box<dyn OutStream> = if let Some(w) = cmd.out.clone() {
             Box::new(w)
         } else {
             Box::new(Writer::new(&vga::WRITER))
         };
+        let err: Box<dyn OutStream> = if let Some(w) = cmd.err.clone() {
+            Box::new(w)
+        } else {
+            Box::new(Writer::new(&vga::WRITER))
+        };
         match cmd.cmd.as_str() {
-            "cd" => self.cd(cmd.args.clone()),
-            "ls" => self.spawn(Task::new(ls(current_pos, out, cmd.args.clone()))),
-            "cat" => self.spawn(Task::new(cat(current_pos, out, cmd.args.clone()))),
-            "mkdir" => self.spawn(Task::new(mkdir(current_pos, out, cmd.args.clone()))),
-            "touch" => self.spawn(Task::new(touch(current_pos, out, cmd.args.clone()))),
-            "echo" => self.spawn(Task::new(echo(out, cmd.args.clone()))),
-            "exit" => self.spawn(Task::new(exit(out, cmd.args.clone()))),
-            "rm" => self.spawn(Task::new(rm(current_pos, out, cmd.args.clone()))),
-            "pwd" => self.pwd(cmd.args.clone()),
+            "cd" => self.cd(cmd.args.clone(), out, err),
+            "ls" => self.spawn(Task::new(ls(current_pos, out, err, cmd.args.clone()))),
+            "cat" => self.spawn(Task::new(cat(current_pos, out, err, cmd.args.clone()))),
+            "mkdir" => self.spawn(Task::new(mkdir(current_pos, out, err, cmd.args.clone()))),
+            "touch" => self.spawn(Task::new(touch(current_pos, out, err, cmd.args.clone()))),
+            "echo" => self.spawn(Task::new(echo(out, err, cmd.args.clone()))),
+            "exit" => self.spawn(Task::new(exit(out, err, cmd.args.clone()))),
+            "rm" => self.spawn(Task::new(rm(current_pos, out, err, cmd.args.clone()))),
+            "pwd" => self.pwd(cmd.args.clone(), out, err),
             _ => {}
         }
     }
 
-    fn cd(&mut self, args: Args) {
-        let args: ArgParser<1> = ArgParser::try_from(args)
-            .unwrap()
-            .validate(Vec::new())
-            .unwrap();
+    fn cd(
+        &mut self,
+        args: Args,
+        mut _outstream: Box<dyn OutStream>,
+        mut errstream: Box<dyn OutStream>,
+    ) {
+        let args: ArgParser<1> = match validate_checked(args, Vec::new()) {
+            Ok(v) => v,
+            Err(e) => {
+                _ = writeln!(errstream, "wrong args to cd: {}", e);
+                return;
+            }
+        };
         let p2 = Path::new(&args.positionals[0]);
         self.pos = if args.positionals[0].starts_with('/') {
             if !is_valid_dir(&p2) {
-                println!("cannot move into {}", p2);
+                _ = writeln!(errstream, "cannot move into {}", p2);
                 self.pos.clone()
             } else {
                 p2.canonicalize().into()
@@ -227,7 +201,7 @@ impl<'a> Shell<'a> {
             let p = self.pos.as_path();
             let p = Path::try_concat(&p, &p2);
             if !is_valid_dir(&p) {
-                println!("cannot move into {}", p);
+                _ = writeln!(errstream, "cannot move into {}", p);
                 self.pos.clone()
             } else {
                 p.canonicalize().into()
@@ -235,12 +209,13 @@ impl<'a> Shell<'a> {
         }
     }
 
-    fn pwd(&self, args: Args) {
-        let _args: ArgParser<0> = ArgParser::try_from(args)
-            .unwrap()
-            .validate(Vec::new())
-            .unwrap();
-        println!("{}", self.pos);
+    fn pwd(
+        &self,
+        _args: Args,
+        mut outstream: Box<dyn OutStream>,
+        mut _errstream: Box<dyn OutStream>,
+    ) {
+        _ = writeln!(outstream, "{}", self.pos);
     }
 }
 

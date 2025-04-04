@@ -5,7 +5,6 @@ pub mod vga;
 use core::fmt::{Arguments, Write};
 use spin::Mutex;
 pub use vga::Color;
-use vga::VGAWriter;
 use x86_64::instructions::interrupts;
 
 // TODO implement Bridge pattern for Writer Backend and possibly multiple Backends (how to handle Chars, Rows, Colors?)
@@ -16,13 +15,13 @@ pub trait WriterBackend: core::fmt::Write {
     fn write_bytes(&mut self, _bytes: &[u8]) {}
     fn clear_one(&mut self) {}
     fn clear_row(&mut self) {}
-    fn select_row(&mut self, row: usize) {}
+    fn select_row(&mut self, _row: usize) {}
     fn select_current_row(&mut self) {}
     fn select_current(&mut self) {}
     fn select_prev(&mut self) {}
     fn select_next(&mut self) {}
-    fn write_byte_at(&mut self, pos: usize, byte: u8) {}
-    fn delete_byte_at(&mut self, pos: usize) {}
+    fn write_byte_at(&mut self, _pos: usize, _byte: u8) {}
+    fn delete_byte_at(&mut self, _pos: usize) {}
     fn bumb_cur(&mut self, cur: &mut usize) {
         *cur += 1;
     }
@@ -49,7 +48,7 @@ where
         self.backend.lock().clear_one();
     }
     pub fn clear_row(&mut self) {}
-    pub fn select_row(&mut self, row: usize) {}
+    pub fn select_row(&mut self, _row: usize) {}
     pub fn select_current_row(&mut self) {}
     pub fn select_current(&mut self) {}
     pub fn select_prev(&mut self) {}
@@ -57,7 +56,7 @@ where
     pub fn write_byte_at(&mut self, pos: usize, byte: u8) {
         self.backend.lock().write_byte_at(pos, byte)
     }
-    pub fn delete_byte_at(&mut self, pos: usize) {}
+    pub fn delete_byte_at(&mut self, _pos: usize) {}
     pub fn bumb_cur(&mut self, cur: &mut usize) {
         self.backend.lock().bumb_cur(cur);
     }
