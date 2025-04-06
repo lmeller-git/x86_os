@@ -318,6 +318,13 @@ impl WriterBackend for VGAWriter {
             });
         }
     }
+
+    fn clear_row(&mut self) {
+        if let Some(mut row) = self.select_row(self.row) {
+            row.char(b' ');
+        }
+        self.column = 0;
+    }
 }
 
 lazy_static! {

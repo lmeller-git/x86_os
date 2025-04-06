@@ -47,7 +47,9 @@ where
     pub fn clear_one(&mut self) {
         self.backend.lock().clear_one();
     }
-    pub fn clear_row(&mut self) {}
+    pub fn clear_row(&mut self) {
+        self.backend.lock().clear_row();
+    }
     pub fn select_row(&mut self, _row: usize) {}
     pub fn select_current_row(&mut self) {}
     pub fn select_current(&mut self) {}

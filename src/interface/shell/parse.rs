@@ -1,6 +1,11 @@
 use core::fmt::{Display, Write};
 
-use alloc::{collections::VecDeque, string::String, vec::Vec};
+use alloc::{
+    collections::VecDeque,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use futures_util::StreamExt;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use spin::Mutex;
@@ -10,6 +15,7 @@ use crate::{
     print,
 };
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Cmd {
     pub cmd: String,
     pub args: Args,
@@ -17,7 +23,7 @@ pub struct Cmd {
     pub err: Option<Redirect>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Args {
     pub positional: Vec<String>,
     pub named: Vec<NamedArg>,
@@ -57,6 +63,24 @@ impl From<&[&str]> for Args {
     }
 }
 
+impl Display for Args {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for p in &self.positional {
+            write!(f, " {}", p)?;
+        }
+        for p in &self.named {
+            write!(f, " {}", p)?;
+        }
+        Ok(())
+    }
+}
+
+impl From<&str> for Cmd {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
 impl From<String> for Cmd {
     fn from(value: String) -> Self {
         if value.is_empty() {
@@ -74,19 +98,13 @@ impl From<String> for Cmd {
         let mut j = unquoted.len();
         for (i, arg) in unquoted[1..].iter().enumerate() {
             match *arg {
-                ">>" => {
+                ">>" | "1>>" => {
                     if let Some(&output) = unquoted.get(i + 2) {
                         out = Some(Redirect::Append(output.into()))
                     }
                     j = j.min(i + 1);
                 }
-                "1>>" => {
-                    if let Some(&output) = unquoted.get(i + 2) {
-                        out = Some(Redirect::Append(output.into()))
-                    }
-                    j = j.min(i + 1);
-                }
-                "1>" => {
+                "1>" | ">" => {
                     if let Some(&output) = unquoted.get(i + 2) {
                         out = Some(Redirect::Overwrite(output.into()))
                     }
@@ -118,7 +136,7 @@ impl From<String> for Cmd {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Redirect {
     Append(String),
     Overwrite(String),
@@ -136,8 +154,22 @@ impl Redirect {
 }
 
 impl Display for Cmd {
-    fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.cmd)?;
+        write!(f, "{}", self.args)?;
+        if let Some(ref e) = self.out {
+            match e {
+                Redirect::Append(s) => write!(f, " >> {}", s),
+                Redirect::Overwrite(s) => write!(f, " 1> {}", s),
+            }?;
+        }
+        if let Some(ref e) = self.err {
+            match e {
+                Redirect::Append(s) => write!(f, " >> {}", s),
+                Redirect::Overwrite(s) => write!(f, " 2> {}", s),
+            }?;
+        }
+        Ok(())
     }
 }
 
@@ -145,7 +177,7 @@ fn parse_quoted_str(data: &str) -> Vec<&str> {
     data.split(" ").collect()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamedArg {
     pub name: String,
     pub val: String,
@@ -156,6 +188,12 @@ impl From<(&str, &str)> for NamedArg {
         let name = value.0.into();
         let val = value.1.into();
         Self { name, val }
+    }
+}
+
+impl Display for NamedArg {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, " {} {}", self.name, self.val)
     }
 }
 
@@ -175,8 +213,8 @@ where
     B: WriterBackend + 'static,
 {
     pub async fn next(&mut self, instream: &mut ScancodeStream) -> Option<&Cmd> {
+        self.hist_position = 0;
         let mut buffer = String::new();
-        let mut tmp = None;
         let mut keyboard = Keyboard::new(
             ScancodeSet1::new(),
             layouts::Us104Key,
@@ -193,23 +231,32 @@ where
                         DecodedKey::Unicode(character) => {
                             write!(self.writer, "{}", character).unwrap();
                             if character == '\n' {
-                                self.hist.push_front(buffer.into());
+                                let entry = buffer.into();
+                                if self.hist.front() != Some(&entry) {
+                                    self.hist.push_front(entry);
+                                }
                                 return self.hist.front();
                             }
                             buffer.push(character);
                         }
                         DecodedKey::RawKey(key) => match key {
                             KeyCode::ArrowUp => {
-                                tmp = self.get_prev();
-                                if let Some(tmp) = tmp {
-                                    print!("{}", tmp);
-                                }
+                                buffer = if let Some(v) = self.get_prev() {
+                                    format!("{}", v)
+                                } else {
+                                    "".into()
+                                };
+                                self.clear_line();
+                                print!("> {}", buffer);
                             }
                             KeyCode::ArrowDown => {
-                                tmp = self.get_next();
-                                if let Some(tmp) = tmp {
-                                    print!("{}", tmp);
-                                }
+                                buffer = if let Some(v) = self.get_next() {
+                                    format!("{}", v)
+                                } else {
+                                    "".into()
+                                };
+                                self.clear_line();
+                                print!("> {}", buffer);
                             }
                             KeyCode::ArrowLeft => {
                                 self.debumb_cur();
