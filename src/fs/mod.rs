@@ -66,7 +66,7 @@ impl<'a> Path<'a> {
         // TODO
         let mut s = Self::new("");
         for element in &self.elements {
-            if !element.contains('.') {
+            if *element != "." && *element != ".." {
                 s.extend(&[element]);
             } else if *element == ".." {
                 (s, _) = s.split_last();

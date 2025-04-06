@@ -3,7 +3,7 @@ use core::{
     task::{Context, Poll, Waker},
 };
 
-use alloc::{boxed::Box, collections::BTreeMap, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, format, sync::Arc, vec::Vec};
 use builtins::{cat, echo, exit, ls, mkdir, rm, touch, validate_checked};
 use crossbeam_queue::ArrayQueue;
 use parse::{Args, Cmd, Parser, Redirect};
@@ -35,12 +35,13 @@ impl Write for Redirect {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         match self {
             Self::Overwrite(p) => {
-                let p = Path::new(p);
+                let p = Path::new(p).canonicalize();
                 _ = use_or_create(&p);
                 fs::write(&p, s.bytes().collect()).unwrap();
             }
             Self::Append(p) => {
                 let p = Path::new(p);
+                let p = p.canonicalize();
                 _ = use_or_create(&p);
                 let content = fs::read(&p).unwrap_or_default();
                 let mut s: Vec<u8> = s.bytes().collect();
@@ -152,12 +153,18 @@ impl<'a> Shell<'a> {
 
     fn execute(&mut self, cmd: &Cmd) {
         let current_pos: PathBuf = self.pos.clone();
-        let out: Box<dyn OutStream> = if let Some(w) = cmd.out.clone() {
+        let out: Box<dyn OutStream> = if let Some(mut w) = cmd.out.clone() {
+            if w.is_relative() {
+                w.prepend(&format!("{}/", self.pos));
+            }
             Box::new(w)
         } else {
             Box::new(Writer::new(&vga::WRITER))
         };
-        let err: Box<dyn OutStream> = if let Some(w) = cmd.err.clone() {
+        let err: Box<dyn OutStream> = if let Some(mut w) = cmd.err.clone() {
+            if w.is_relative() {
+                w.prepend(&format!("{}/", self.pos));
+            }
             Box::new(w)
         } else {
             Box::new(Writer::new(&vga::WRITER))

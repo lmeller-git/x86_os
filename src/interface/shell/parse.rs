@@ -118,10 +118,21 @@ impl From<String> for Cmd {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Redirect {
     Append(String),
     Overwrite(String),
+}
+
+impl Redirect {
+    pub fn prepend(&mut self, p2: &str) {
+        let (Self::Append(p) | Self::Overwrite(p)) = self;
+        p.insert_str(0, p2);
+    }
+    pub fn is_relative(&self) -> bool {
+        let (Self::Append(p) | Self::Overwrite(p)) = self;
+        !p.starts_with('/')
+    }
 }
 
 impl Display for Cmd {
